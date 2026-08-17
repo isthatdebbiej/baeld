@@ -87,13 +87,25 @@ struct CompletedTask {
 #[derive(Debug, Serialize)]
 struct Environment {
     schema_version: u16,
+    baeld_version: String,
     created_unix_ms: u128,
     config: BenchConfig,
     os: String,
     arch: String,
+    os_release: String,
     kernel: String,
+    hostname: String,
+    virtualization: String,
+    cpu_model: String,
+    logical_cpus: usize,
+    memory_total_kib: u64,
+    clocksource: String,
+    kernel_command_line: String,
+    host_steal_ticks_start: u64,
     chromium_version: String,
     node_version: String,
+    rust_version: String,
+    playwright_version: String,
     git_sha: String,
     git_dirty: bool,
 }
@@ -567,13 +579,35 @@ fn verify_delegation(parent: &Path) -> Result<()> {
 fn write_environment(run_dir: &Path, config: &BenchConfig) -> Result<()> {
     let environment = Environment {
         schema_version: 1,
+        baeld_version: env!("CARGO_PKG_VERSION").into(),
         created_unix_ms: SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis(),
         config: config.clone(),
         os: std::env::consts::OS.into(),
         arch: std::env::consts::ARCH.into(),
+        os_release: read_trimmed("/etc/os-release"),
         kernel: command_line("uname", &["-a"]),
+        hostname: command_line("hostname", &[]),
+        virtualization: command_line("systemd-detect-virt", &[]),
+        cpu_model: cpu_model(),
+        logical_cpus: std::thread::available_parallelism()
+            .map(usize::from)
+            .unwrap_or_default(),
+        memory_total_kib: memory_total_kib(),
+        clocksource: read_trimmed(
+            "/sys/devices/system/clocksource/clocksource0/current_clocksource",
+        ),
+        kernel_command_line: read_trimmed("/proc/cmdline"),
+        host_steal_ticks_start: host_steal_ticks(),
         chromium_version: command_line(config.chromium.to_string_lossy().as_ref(), &["--version"]),
         node_version: command_line(config.node.to_string_lossy().as_ref(), &["--version"]),
+        rust_version: command_line("rustc", &["--version", "--verbose"]),
+        playwright_version: command_line(
+            config.node.to_string_lossy().as_ref(),
+            &[
+                "-p",
+                "require('./node_modules/playwright/package.json').version",
+            ],
+        ),
         git_sha: command_line("git", &["rev-parse", "HEAD"]),
         git_dirty: !command_line("git", &["status", "--porcelain"]).is_empty(),
     };
@@ -582,6 +616,40 @@ fn write_environment(run_dir: &Path, config: &BenchConfig) -> Result<()> {
         serde_json::to_vec_pretty(&environment)?,
     )?;
     Ok(())
+}
+
+fn read_trimmed(path: &str) -> String {
+    fs::read_to_string(path)
+        .map(|value| value.trim().to_owned())
+        .unwrap_or_else(|error| format!("unavailable: {error}"))
+}
+
+fn cpu_model() -> String {
+    fs::read_to_string("/proc/cpuinfo")
+        .ok()
+        .and_then(|cpuinfo| {
+            cpuinfo.lines().find_map(|line| {
+                line.strip_prefix("model name")
+                    .and_then(|value| value.split_once(':'))
+                    .map(|(_, value)| value.trim().to_owned())
+            })
+        })
+        .unwrap_or_else(|| "unavailable".into())
+}
+
+fn memory_total_kib() -> u64 {
+    fs::read_to_string("/proc/meminfo")
+        .ok()
+        .and_then(|meminfo| {
+            meminfo.lines().find_map(|line| {
+                line.strip_prefix("MemTotal:")?
+                    .split_whitespace()
+                    .next()?
+                    .parse()
+                    .ok()
+            })
+        })
+        .unwrap_or_default()
 }
 
 fn command_line(command: &str, args: &[&str]) -> String {

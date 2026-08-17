@@ -61,6 +61,10 @@ cargo run --release -- bench --config experiments/wsl-gate.toml
 The WSL gate is intentionally restricted to concurrency one, the representative SPA
 and WebSocket failure control, two wait durations, and the four primary mechanisms.
 
+For a disposable GCP or other Ubuntu VM, follow the
+[cloud sandbox runbook](docs/cloud-sandbox.md). It separates cheap development and
+Spot runs from the on-demand host used for final measurements.
+
 Summarize and plot a run:
 
 ```bash
