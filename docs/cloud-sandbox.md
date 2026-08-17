@@ -38,11 +38,13 @@ bash scripts/setup-ubuntu.sh
 Validate before benchmarking:
 
 ```bash
-systemd-run --user --scope -p Delegate=yes --collect bash
 cd ~/baeld
-cargo run --release -- doctor
-cargo run --release -- smoke
+bash scripts/run-cloud-gate.sh
 ```
+
+Baeld must be the direct command in each delegated transient scope. Do not enter an
+interactive delegated shell and do not use `cargo run` for an experiment: the shell
+or Cargo process would remain in the cgroup root and prevent controller delegation.
 
 For a reduced cloud pilot, copy `experiments/pilot.toml`, keep concurrency at one,
 and retain at least five paired blocks. Do not silently call it the final experiment.

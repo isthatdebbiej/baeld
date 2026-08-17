@@ -24,8 +24,8 @@ ln -sfn "$chrome_path" .baeld/chromium
 
 python3 -m venv .venv
 .venv/bin/pip install -r analysis/requirements.txt
+cargo build --release --locked
 
 echo
-echo "Setup complete. Enter a delegated scope before benchmarking:"
-echo "  systemd-run --user --scope -p Delegate=yes --collect bash"
-echo "Then run: cargo run -- doctor"
+echo "Setup complete. Run the disposable cloud gate with:"
+echo "  bash scripts/run-cloud-gate.sh"

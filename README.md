@@ -29,8 +29,7 @@ The optional `scripts/dev-registry-proxy.mjs` exists only for restricted Windows
 git clone <repository-url> baeld
 cd baeld
 scripts/setup-ubuntu.sh
-systemd-run --user --scope -p Delegate=yes --collect bash
-cargo run -- doctor
+bash scripts/run-cloud-gate.sh
 ```
 
 Baeld refuses publishable benchmarks if required host controls or Chromium sandboxing are unavailable.
@@ -52,10 +51,9 @@ and require at least 3 GiB of available memory before starting:
 
 ```bash
 scripts/check-wsl.sh
-systemd-run --user --scope -p Delegate=yes --collect bash
-cd ~/baeld
-cargo run --release -- doctor
-cargo run --release -- bench --config experiments/wsl-gate.toml
+cargo build --release --locked
+scripts/run-scoped.sh doctor
+scripts/run-scoped.sh bench --config experiments/wsl-gate.toml
 ```
 
 The WSL gate is intentionally restricted to concurrency one, the representative SPA

@@ -5,19 +5,26 @@ test:
     npm run check
 
 doctor:
-    cargo run -- doctor
+    cargo build --release --locked
+    scripts/run-scoped.sh doctor
 
 smoke:
-    cargo run -- smoke --output results
+    cargo build --release --locked
+    scripts/run-scoped.sh smoke --output results
 
 wsl-check:
     scripts/check-wsl.sh
 
 wsl-gate:
-    cargo run --release -- bench --config experiments/wsl-gate.toml --output results
+    cargo build --release --locked
+    scripts/run-scoped.sh bench --config experiments/wsl-gate.toml --output results
+
+cloud-gate:
+    scripts/run-cloud-gate.sh
 
 pilot:
-    cargo run --release -- bench --config experiments/pilot.toml --output results
+    cargo build --release --locked
+    scripts/run-scoped.sh bench --config experiments/pilot.toml --output results
 
 full:
     scripts/run-final.sh

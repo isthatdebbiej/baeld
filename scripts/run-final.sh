@@ -9,4 +9,5 @@ set -euo pipefail
 scripts/verify-host.sh
 mkdir -p results
 cargo build --release --locked
-taskset -c 0-1 target/release/baeld bench --config experiments/final.toml --output results
+BAELD_CONTROLLER_CPUS=0-1 \
+  scripts/run-scoped.sh bench --config experiments/final.toml --output results
