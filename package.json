@@ -1,0 +1,16 @@
+{
+  "name": "baeld-workloads",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "server": "node workloads/server.mjs",
+    "check": "node --check workloads/server.mjs && node --check workloads/driver/driver.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.62.1",
+    "ws": "8.21.3"
+  }
+}

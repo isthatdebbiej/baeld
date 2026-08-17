@@ -1,0 +1,13 @@
+/target/
+/node_modules/
+/.npm-cache/
+/.pip-cache/
+/.baeld/
+/.venv/
+/.tools/
+__pycache__/
+*.py[cod]
+/results/*
+!/results/README.md
+*.log
+.DS_Store

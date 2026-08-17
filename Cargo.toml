@@ -1,0 +1,31 @@
+[package]
+name = "baeld"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Experimental resource governor and benchmark for browser-agent inference waits"
+repository = "https://github.com/baeld-dev/baeld"
+rust-version = "1.85"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+humantime = "2.1"
+libc = "0.2"
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tempfile = "3.14"
+thiserror = "2.0"
+tokio = { version = "1.42", features = ["full"] }
+toml = "0.8"
+uuid = { version = "1.11", features = ["v4", "serde"] }
+walkdir = "2.5"
+
+[dev-dependencies]
+pretty_assertions = "1.4"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
