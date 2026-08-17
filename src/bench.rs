@@ -111,10 +111,18 @@ struct Environment {
 }
 
 pub async fn run_smoke(output: &Path) -> Result<()> {
-    run_config(Path::new("experiments/smoke.toml"), output).await
+    run_config_impl(Path::new("experiments/smoke.toml"), output, true).await
 }
 
 pub async fn run_config(config_path: &Path, output: &Path) -> Result<()> {
+    run_config_impl(config_path, output, false).await
+}
+
+async fn run_config_impl(
+    config_path: &Path,
+    output: &Path,
+    require_all_successful: bool,
+) -> Result<()> {
     if !cfg!(target_os = "linux") {
         bail!("Baeld benchmarks require Linux with cgroup v2; use Windows only for development");
     }
@@ -147,10 +155,16 @@ pub async fn run_config(config_path: &Path, output: &Path) -> Result<()> {
     let _ = server.kill().await;
     let _ = server.wait().await;
     let _ = server_cgroup.remove();
-    result?;
+    let all_successful = result?;
 
     println!("Results: {}", run_dir.display());
-    crate::summarize::run(&run_dir, false)
+    crate::summarize::run(&run_dir, false)?;
+    if require_all_successful && !all_successful {
+        bail!(
+            "smoke benchmark had one or more failed tasks; refusing to start a larger experiment"
+        );
+    }
+    Ok(())
 }
 
 async fn run_matrix(
@@ -159,7 +173,8 @@ async fn run_matrix(
     server_cgroup: &SessionCgroup,
     writer: &EventWriter,
     mechanisms: Vec<Mechanism>,
-) -> Result<()> {
+) -> Result<bool> {
+    let mut all_successful = true;
     for workload in &config.workloads {
         for &wait_ms in &config.waits_ms {
             for &concurrency in &config.concurrency {
@@ -167,7 +182,7 @@ async fn run_matrix(
                     let mut block = mechanisms.clone();
                     block.shuffle(&mut rand::thread_rng());
                     for mechanism in block {
-                        run_group(
+                        all_successful &= run_group(
                             config,
                             parent,
                             server_cgroup,
@@ -183,7 +198,7 @@ async fn run_matrix(
             }
         }
     }
-    Ok(())
+    Ok(all_successful)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -196,7 +211,7 @@ async fn run_group(
     workload: &str,
     wait_ms: u64,
     concurrency: usize,
-) -> Result<()> {
+) -> Result<bool> {
     let governor_before = process_cpu_usec();
     let server_before = server_cgroup.sample()?;
     let steal_before = host_steal_ticks();
@@ -221,6 +236,7 @@ async fn run_group(
     let governor_share = governor_total / completed.len().max(1) as u64;
     let server_share = server_total / completed.len().max(1) as u64;
     let steal_share = steal_total / completed.len().max(1) as u64;
+    let all_successful = completed.iter().all(|task| task.result.success);
     for task in completed {
         writer.write(
             &task.session_id,
@@ -244,7 +260,7 @@ async fn run_group(
             },
         )?;
     }
-    Ok(())
+    Ok(all_successful)
 }
 
 async fn run_one(
@@ -333,15 +349,29 @@ async fn run_one(
         .env("BAELD_SETTLE_MS", config.settle_ms.to_string())
         .env("BAELD_MECHANISM", mechanism.slug())
         .stdin(Stdio::null())
-        .stderr(Stdio::piped());
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .kill_on_drop(true);
     let driver = driver_command
         .spawn()
         .context("starting Playwright driver")?;
-    let output = driver
-        .wait_with_output()
-        .await
-        .context("running Playwright driver")?;
+    // A broken browser, driver, or phase exchange must not consume a paid
+    // benchmark host indefinitely. The allowance is deliberately generous
+    // relative to the configured wait and settling windows.
+    let driver_timeout = Duration::from_millis(
+        wait_ms
+            .saturating_add(config.settle_ms)
+            .saturating_add(60_000),
+    );
+    let output = tokio::time::timeout(driver_timeout, driver.wait_with_output()).await;
     let latency = started.elapsed();
+    if output.is_err() {
+        // Dropping Child::wait_with_output kills the driver because
+        // kill_on_drop is enabled. Thaw first so cleanup can always proceed.
+        let _ = cgroup.thaw();
+        let _ = cgroup.set_cpu_max(None, 100_000);
+        let _ = driver_cgroup.kill_all();
+    }
     let driver_delta = driver_cgroup.sample()?.delta(&driver_before);
     let after = cgroup.sample()?;
     sampler.abort();
@@ -351,26 +381,51 @@ async fn run_one(
         Err(_) => bail!("phase controller did not stop after finished phase"),
     }
 
-    let parsed = if output.status.success() {
-        serde_json::from_slice::<DriverResult>(&output.stdout).unwrap_or_else(|error| {
-            DriverResult {
-                success: false,
-                latency_ms: latency.as_secs_f64() * 1_000.0,
-                resume_latency_ms: 0.0,
-                reconnects: 0,
-                sequence_gaps: 0,
-                failure: Some(format!("invalid driver output: {error}")),
-            }
-        })
-    } else {
-        DriverResult {
+    let parsed = match output {
+        Ok(Ok(output)) if output.status.success() => {
+            serde_json::from_slice::<DriverResult>(&output.stdout).unwrap_or_else(|error| {
+                DriverResult {
+                    success: false,
+                    latency_ms: latency.as_secs_f64() * 1_000.0,
+                    resume_latency_ms: 0.0,
+                    reconnects: 0,
+                    sequence_gaps: 0,
+                    failure: Some(format!(
+                        "invalid driver output: {error}; stdout={:?}; stderr={:?}",
+                        String::from_utf8_lossy(&output.stdout).trim(),
+                        String::from_utf8_lossy(&output.stderr).trim()
+                    )),
+                }
+            })
+        }
+        Ok(Ok(output)) => DriverResult {
             success: false,
             latency_ms: latency.as_secs_f64() * 1_000.0,
             resume_latency_ms: 0.0,
             reconnects: 0,
             sequence_gaps: 0,
-            failure: Some(String::from_utf8_lossy(&output.stderr).trim().to_owned()),
-        }
+            failure: Some(format!(
+                "driver exited with {}; stderr={:?}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr).trim()
+            )),
+        },
+        Ok(Err(error)) => DriverResult {
+            success: false,
+            latency_ms: latency.as_secs_f64() * 1_000.0,
+            resume_latency_ms: 0.0,
+            reconnects: 0,
+            sequence_gaps: 0,
+            failure: Some(format!("waiting for Playwright driver: {error}")),
+        },
+        Err(_) => DriverResult {
+            success: false,
+            latency_ms: latency.as_secs_f64() * 1_000.0,
+            resume_latency_ms: 0.0,
+            reconnects: 0,
+            sequence_gaps: 0,
+            failure: Some(format!("Playwright driver exceeded {driver_timeout:?}")),
+        },
     };
 
     let delta = after.delta(&before);

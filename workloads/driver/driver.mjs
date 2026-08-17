@@ -99,11 +99,26 @@ async function phaseClient(path) {
   const lines = readline.createInterface({input:socket, crlfDelay:Infinity});
   const pending = new Map();
   lines.on("line", line => {
-    const ack = JSON.parse(line); const waiter = pending.get(ack.generation);
+    let ack;
+    try { ack = JSON.parse(line); }
+    catch (error) { rejectPending(new Error(`invalid phase acknowledgement: ${error}`)); return; }
+    const waiter = pending.get(ack.generation);
     if (!waiter) return;
     pending.delete(ack.generation);
+    clearTimeout(waiter.timeout);
     ack.accepted ? waiter.resolve(ack) : waiter.reject(new Error(ack.error ?? "phase rejected"));
   });
+  socket.on("error", rejectPending);
+  socket.on("close", () => rejectPending(new Error("phase socket closed")));
+
+  function rejectPending(error) {
+    for (const waiter of pending.values()) {
+      clearTimeout(waiter.timeout);
+      waiter.reject(error);
+    }
+    pending.clear();
+  }
+
   return {
     set(name, expectedWaitMs) {
       generation++;
@@ -115,11 +130,15 @@ async function phaseClient(path) {
         expected_wait_ms:expectedWaitMs ?? null
       };
       return new Promise((resolve, reject) => {
-        pending.set(generation, {resolve,reject});
+        const timeout = setTimeout(() => {
+          pending.delete(generation);
+          reject(new Error(`phase ${name} generation ${generation} timed out`));
+        }, 15_000);
+        pending.set(generation, {resolve,reject,timeout});
         socket.write(JSON.stringify(request) + "\n");
       });
     },
-    close() { lines.close(); socket.destroy(); }
+    close() { rejectPending(new Error("phase client closed")); lines.close(); socket.destroy(); }
   };
 }
 
