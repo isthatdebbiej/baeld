@@ -11,7 +11,11 @@ It compares four mechanisms:
 
 Baeld asks which mechanism reduces **complete-task CPU per successful task** without hiding deferred work, correctness failures, WebSocket disruption, or governor overhead.
 
-> Research preview: the first development gate found no credible CPU improvement and found a repeatable WebSocket correctness failure under cgroup freezing. This is not a publication-quality result. Baeld does not claim memory reclamation, increased browser density, or production readiness.
+> v0.1.0-preview reports development evidence, not a production recommendation.
+> Cgroup freeze reduced measured CPU for controlled 5–10 second waits, but
+> repeatedly broke the WebSocket correctness oracle. Chrome lifecycle freeze
+> and a 25% CPU quota were neutral in the tested setup. Baeld does not claim
+> memory reclamation, increased browser density, or production readiness.
 
 ## Requirements
 
@@ -36,7 +40,7 @@ The optional `scripts/dev-registry-proxy.mjs` exists only for restricted Windows
 ## Setup
 
 ```bash
-git clone <repository-url> baeld
+git clone https://github.com/isthatdebbiej/baeld.git
 cd baeld
 scripts/setup-ubuntu.sh
 bash scripts/run-cloud-gate.sh
