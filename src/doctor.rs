@@ -1,7 +1,7 @@
 use std::env;
 use std::fs;
 use std::path::Path;
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Result};
@@ -218,15 +218,10 @@ fn sandbox_check() -> Check {
     };
     let output = chromium_probe(&binary, profile.path());
     match output {
-        Ok(output) if output.status.success() => Check {
+        Ok(()) => Check {
             name: "chromium-sandbox",
             ok: true,
             detail: "unprivileged launch succeeded without --no-sandbox".into(),
-        },
-        Ok(output) => Check {
-            name: "chromium-sandbox",
-            ok: false,
-            detail: String::from_utf8_lossy(&output.stderr).trim().into(),
         },
         Err(error) => Check {
             name: "chromium-sandbox",
@@ -236,7 +231,7 @@ fn sandbox_check() -> Check {
     }
 }
 
-fn chromium_probe(binary: &str, profile: &Path) -> std::result::Result<Output, String> {
+fn chromium_probe(binary: &str, profile: &Path) -> std::result::Result<(), String> {
     let mut child = Command::new(binary)
         .args([
             "--headless=new",
@@ -244,7 +239,7 @@ fn chromium_probe(binary: &str, profile: &Path) -> std::result::Result<Output, S
             "--disable-background-networking",
             "--disable-component-update",
             "--disable-crash-reporter",
-            "--dump-dom",
+            "--remote-debugging-port=0",
             &format!("--user-data-dir={}", profile.display()),
             "about:blank",
         ])
@@ -255,7 +250,20 @@ fn chromium_probe(binary: &str, profile: &Path) -> std::result::Result<Output, S
     let deadline = Instant::now() + Duration::from_secs(15);
     loop {
         match child.try_wait().map_err(|error| error.to_string())? {
-            Some(_) => return child.wait_with_output().map_err(|error| error.to_string()),
+            Some(status) => {
+                let output = child
+                    .wait_with_output()
+                    .map_err(|error| error.to_string())?;
+                return Err(format!(
+                    "Chromium exited with {status}: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                ));
+            }
+            None if profile.join("DevToolsActivePort").exists() => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Ok(());
+            }
             None if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
             None => {
                 let _ = child.kill();
