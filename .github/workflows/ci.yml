@@ -48,6 +48,18 @@ jobs:
       - run: python analysis/analyze.py analysis/fixtures --output /tmp/baeld-analysis
       - run: python analysis/paired.py analysis/fixtures --output /tmp/baeld-paired.json
 
+  browser-use:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install uv==0.7.9
+      - run: uv pip install --system --require-hashes -r requirements-browser-use.txt
+      - run: python -m py_compile workloads/driver/browser_use.py
+      - run: python -m unittest analysis.test_browser_use_driver
+
   packaging:
     runs-on: ubuntu-24.04
     steps:

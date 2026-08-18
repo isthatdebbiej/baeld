@@ -32,6 +32,8 @@ pub struct BenchConfig {
     pub server_script: PathBuf,
     #[serde(default = "default_driver")]
     pub driver_script: PathBuf,
+    #[serde(default)]
+    pub driver_runtime: Option<PathBuf>,
     #[serde(default = "default_server_port")]
     pub server_port: u16,
     #[serde(default = "default_settle")]
@@ -55,6 +57,12 @@ fn default_server() -> PathBuf {
 }
 fn default_driver() -> PathBuf {
     "workloads/driver/driver.mjs".into()
+}
+
+impl BenchConfig {
+    fn driver_runtime(&self) -> &Path {
+        self.driver_runtime.as_deref().unwrap_or(&self.node)
+    }
 }
 fn default_server_port() -> u16 {
     4173
@@ -118,6 +126,7 @@ struct Environment {
     rust_version: String,
     playwright_version: String,
     stagehand_version: String,
+    browser_use_version: String,
     git_sha: String,
     git_dirty: bool,
 }
@@ -355,7 +364,7 @@ async fn run_one(
     let driver_script = format!(
         "{} {} {}",
         driver_cgroup.join_command_prefix(),
-        shell_word(&config.node.to_string_lossy()),
+        shell_word(&config.driver_runtime().to_string_lossy()),
         shell_word(&config.driver_script.to_string_lossy())
     );
     let mut driver_command = Command::new("/bin/sh");
@@ -704,7 +713,7 @@ fn write_environment(run_dir: &Path, config: &BenchConfig) -> Result<()> {
         chromium_version: command_line(config.chromium.to_string_lossy().as_ref(), &["--version"]),
         node_version: command_line("node", &["--version"]),
         driver_runtime_version: command_line(
-            config.node.to_string_lossy().as_ref(),
+            config.driver_runtime().to_string_lossy().as_ref(),
             &["--version"],
         ),
         rust_version: command_line("rustc", &["--version", "--verbose"]),
@@ -715,13 +724,38 @@ fn write_environment(run_dir: &Path, config: &BenchConfig) -> Result<()> {
                 "require('./node_modules/playwright/package.json').version",
             ],
         ),
-        stagehand_version: command_line(
-            config.node.to_string_lossy().as_ref(),
-            &[
-                "-p",
-                "require('./node_modules/@browserbasehq/stagehand/package.json').version",
-            ],
-        ),
+        stagehand_version: if config
+            .driver_script
+            .file_name()
+            .and_then(|value| value.to_str())
+            == Some("stagehand.mjs")
+        {
+            command_line(
+                config.driver_runtime().to_string_lossy().as_ref(),
+                &[
+                    "-p",
+                    "require('./node_modules/@browserbasehq/stagehand/package.json').version",
+                ],
+            )
+        } else {
+            "not-used".into()
+        },
+        browser_use_version: if config
+            .driver_script
+            .extension()
+            .and_then(|value| value.to_str())
+            == Some("py")
+        {
+            command_line(
+                config.driver_runtime().to_string_lossy().as_ref(),
+                &[
+                    "-c",
+                    "import importlib.metadata; print(importlib.metadata.version('browser-use'))",
+                ],
+            )
+        } else {
+            "not-used".into()
+        },
         git_sha: command_line("git", &["rev-parse", "HEAD"]),
         git_dirty: !command_line("git", &["status", "--porcelain"]).is_empty(),
     };

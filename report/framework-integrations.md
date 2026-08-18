@@ -66,6 +66,20 @@ expansion. Pay particular attention to watchdogs, background tabs, browser
 relaunch, event-loop work during waits, and child processes created after
 attachment.
 
+The initial adapter pins Browser Use 0.13.6 on Python 3.12 and constructs
+`BrowserSession(cdp_url=..., is_local=True, keep_alive=True)`. Baeld launches
+and owns Chromium; Browser Use must attach rather than launch or replace it.
+The JavaScript workload server remains on Bun while the new `driver_runtime`
+configuration field places only the Python adapter in the separately measured
+driver cgroup. Browser Use shutdown is bounded and Rust remains responsible for
+terminating the browser tree.
+
+Development status: the deterministic Stagehand and Browser Use adapters,
+dependency locks, configuration gates, and CI checks are implemented. Both
+have passed a local real-CDP attachment smoke test against a Baeld-owned
+Chromium process. The Linux cgroup gates and any model-backed agent runs remain
+pending measurements; adapter readiness is not benchmark evidence.
+
 If Browser Use cannot attach to a Baeld-owned browser without altering normal
 behavior, record that as an integration limitation; do not move the Python
 agent into the browser cgroup merely to make accounting convenient.

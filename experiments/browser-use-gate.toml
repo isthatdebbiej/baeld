@@ -1,0 +1,20 @@
+name = "browser-use-deterministic-gate"
+chromium = ".baeld/chromium"
+node = "bun"
+server_script = "workloads/server.mjs"
+driver_runtime = ".venv/bin/python"
+driver_script = "workloads/driver/browser_use.py"
+server_port = 4173
+settle_ms = 3000
+workloads = ["agent-dashboard", "websocket"]
+waits_ms = [5000]
+concurrency = [1]
+repetitions = 8
+browser_cpus = "2-7"
+
+[[mechanisms]]
+kind = "baseline"
+
+[[mechanisms]]
+kind = "cgroup-freeze"
+delay_ms = 500

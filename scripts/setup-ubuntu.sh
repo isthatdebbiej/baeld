@@ -59,6 +59,7 @@ fi
 
 python3 -m venv .venv
 .venv/bin/pip install -r analysis/requirements.txt
+.venv/bin/pip install --require-hashes -r requirements-browser-use.txt
 cargo build --release --locked
 
 echo

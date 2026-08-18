@@ -62,6 +62,7 @@ just smoke    # short four-mechanism experiment
 scripts/run-scoped.sh bench --config experiments/concurrency-gate.toml # schema/concurrency gate
 scripts/run-scoped.sh bench --config experiments/ubuntu24-focused-pilot.toml # 480-task focused pilot
 scripts/run-scoped.sh bench --config experiments/stagehand-gate.toml # 32-task Stagehand ownership gate
+scripts/run-scoped.sh bench --config experiments/browser-use-gate.toml # 32-task Browser Use ownership gate
 just pilot    # controlled pilot matrix
 ```
 
