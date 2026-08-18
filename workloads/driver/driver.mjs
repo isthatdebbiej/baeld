@@ -153,8 +153,11 @@ function sequenceGaps(values) {
 }
 
 async function backgroundOperations(page) {
+  if (workload === "agent-dashboard") {
+    const response = await fetch(`${baseUrl}/api/state?session=${encodeURIComponent(sessionId)}`);
+    return (await response.json()).dashboard_requests ?? 0;
+  }
   return page.evaluate(name => {
-    if (name === "agent-dashboard") return window.__baeldAgent?.refreshes ?? 0;
     if (name === "websocket") return window.__baeld?.sequences.length ?? 0;
     return 0;
   }, workload);

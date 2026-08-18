@@ -8,7 +8,7 @@ setInterval(() => {
 }, 250);
 
 function stateFor(session) {
-  if (!states.has(session)) states.set(session, { updates: 0, value: "initial", sequence: 0 });
+  if (!states.has(session)) states.set(session, { updates: 0, value: "initial", sequence: 0, dashboard_requests: 0 });
   return states.get(session);
 }
 
@@ -19,7 +19,6 @@ const pages = {
     <h1>Account settings</h1><output id="clock"></output><p id="server-value">loading</p>
     <button id="save">Save exactly once</button><script>
     const session = new URLSearchParams(location.search).get('session');
-    window.__baeldAgent = {refreshes:0};
     let ticks = 0;
     setInterval(() => { ticks++; document.querySelector('#clock').textContent = String(ticks); }, 250);
     setInterval(async () => {
@@ -53,7 +52,6 @@ const pages = {
       document.querySelector('#rows').replaceChildren(fragment);
       document.querySelector('#summary').textContent = payload.sequence + ':' + visible.length;
       localStorage.setItem('baeld-dashboard-sequence', String(payload.sequence));
-      window.__baeldAgent.refreshes++;
     }
     refresh();
     setInterval(refresh, 500);
@@ -90,7 +88,7 @@ const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host}`);
   if (request.method === "GET" && url.pathname === "/health") return json(response, 200, {ok:true});
   if (request.method === "POST" && url.pathname === "/api/reset") {
-    states.set(url.searchParams.get("session"), {updates:0, value:"initial", sequence:0});
+    states.set(url.searchParams.get("session"), {updates:0, value:"initial", sequence:0, dashboard_requests:0});
     return json(response, 200, {ok:true});
   }
   if (request.method === "POST" && url.pathname === "/api/mutate") {
@@ -103,6 +101,7 @@ const server = http.createServer(async (request, response) => {
   }
   if (request.method === "GET" && url.pathname === "/api/dashboard") {
     const state = stateFor(url.searchParams.get("session"));
+    state.dashboard_requests++;
     const records = Array.from({length: 240}, (_, index) => ({
       id: index,
       name: "Account " + index,
