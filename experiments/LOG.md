@@ -89,3 +89,32 @@ Every experiment entry must include its hypothesis, exact command, result, decis
   as an inferred or universal policy.
 - Artifacts: `results/1787017971-dashboard-freeze-diagnostic-c3dd78a8/`;
   interpretation in `report/results.md`.
+
+## E006 — Schema-4 smoke on the resized development host
+
+- Hypothesis: Schema 4 preserves the four-mechanism smoke behavior while
+  recording concurrency, block identity, and secondary cgroup diagnostics.
+- Command: `scripts/run-scoped.sh smoke --output results`
+- Result: 11 of 12 tasks passed. The cgroup-freeze WebSocket task failed with
+  one reconnect and three sequence gaps; the other WebSocket mechanisms
+  passed. Terminal events contained the new schema-4 concurrency, block,
+  memory, I/O, throttling, and PSI fields. Analysis regenerated successfully,
+  and no Baeld Chromium process remained afterward.
+- Decision: Proceed to the bounded concurrency accounting gate, not the full
+  pilot. Retain Ubuntu 22.04 classification as development-only.
+- Artifacts: `results/1787023280-smoke-ad754257/`.
+
+## E007 — Schema-4 bounded concurrency gate
+
+- Hypothesis: Concurrency-one and concurrency-five measurements remain
+  separate and are paired by randomized block identity.
+- Command: `scripts/run-scoped.sh bench --config experiments/concurrency-gate.toml --output results`
+- Result: All 48 tasks produced terminal events. The analyzers emitted distinct
+  concurrency-one and concurrency-five cells with two `block_id` pairs each.
+  Cgroup freeze failed all 12 WebSocket tasks, producing 12 reconnects and 39
+  sequence gaps. Baseline, lifecycle freeze, and CPU quota passed all 36 of
+  their WebSocket tasks. Normal-SPA net CPU differences were between roughly
+  -0.03 and +0.02 seconds and are two-pair development noise.
+- Decision: The concurrency-accounting repair is validated. Do not enlarge the
+  Ubuntu 22.04 matrix; move the next evidence run to a clean Ubuntu 24.04 host.
+- Artifacts: `results/1787023423-concurrency-development-gate-dd0e305b/`.

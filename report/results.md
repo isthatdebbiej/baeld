@@ -131,3 +131,19 @@ profile first, classify suspend-safe sessions, and keep cgroup freeze opt-in.
 Raw artifacts are retained locally under
 `results/1787017302-long-wait-correctness-gate-c8778ac1/` and
 `results/1787017971-dashboard-freeze-diagnostic-c3dd78a8/`.
+
+## Schema-4 concurrency validation — 2026-08-18 UTC
+
+After adding explicit concurrency and randomized block identity, a bounded
+Ubuntu 22.04 development gate ran two blocks at concurrency one and five. The
+48 terminal tasks remained in distinct analyzer cells and paired by `block_id`,
+validating the accounting repair that is required before any final matrix.
+
+Cgroup freeze failed all 12 WebSocket tasks, with 12 reconnects and 39 sequence
+gaps. The other mechanisms passed all 36 corresponding WebSocket tasks. The
+normal-SPA CPU differences were small two-pair fluctuations and are not
+performance evidence. This gate validates the harness, not a governor win.
+
+Artifacts are retained locally under
+`results/1787023423-concurrency-development-gate-dd0e305b/` and remain labeled
+development-only because the host ran Ubuntu 22.04 and the gate had two pairs.
