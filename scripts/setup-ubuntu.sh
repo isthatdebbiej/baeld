@@ -28,6 +28,31 @@ mkdir -p .baeld
 chrome_path="$(node -e "import('playwright').then(p => console.log(p.chromium.executablePath()))")"
 ln -sfn "$chrome_path" .baeld/chromium
 
+# Ubuntu 23.10+ restricts unprivileged user namespaces through AppArmor. A
+# downloaded Chrome-for-Testing binary consequently cannot start its sandbox
+# unless its exact path is allowlisted. Keep the global restriction enabled and
+# install the narrow profile recommended by Chromium rather than using
+# --no-sandbox or disabling the sysctl system-wide.
+if [[ -r /proc/sys/kernel/apparmor_restrict_unprivileged_userns ]] \
+  && [[ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns)" == "1" ]]; then
+  case "$chrome_path" in
+    "$HOME"/.cache/ms-playwright/*/chrome-linux64/chrome) ;;
+    *)
+      echo "Refusing to allowlist unexpected Chromium path: $chrome_path" >&2
+      exit 1
+      ;;
+  esac
+  sudo tee /etc/apparmor.d/baeld-playwright-chromium >/dev/null <<EOF
+abi <abi/4.0>,
+include <tunables/global>
+
+profile baeld-playwright-chromium $chrome_path flags=(unconfined) {
+  userns,
+}
+EOF
+  sudo apparmor_parser -r /etc/apparmor.d/baeld-playwright-chromium
+fi
+
 python3 -m venv .venv
 .venv/bin/pip install -r analysis/requirements.txt
 cargo build --release --locked
