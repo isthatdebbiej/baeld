@@ -1,0 +1,26 @@
+name = "long-wait-correctness-gate"
+chromium = ".baeld/chromium"
+node = "node"
+server_script = "workloads/server.mjs"
+driver_script = "workloads/driver/driver.mjs"
+server_port = 4173
+settle_ms = 3000
+workloads = ["agent-dashboard", "websocket"]
+waits_ms = [5000, 10000]
+concurrency = [1]
+repetitions = 3
+
+[[mechanisms]]
+kind = "baseline"
+
+[[mechanisms]]
+kind = "chrome-lifecycle-freeze"
+
+[[mechanisms]]
+kind = "cpu-quota"
+quota_us = 25000
+period_us = 100000
+
+[[mechanisms]]
+kind = "cgroup-freeze"
+delay_ms = 500

@@ -70,6 +70,7 @@ struct DriverResult {
     resume_latency_ms: f64,
     reconnects: u64,
     sequence_gaps: u64,
+    background_operations: u64,
     #[serde(default)]
     failure: Option<String>,
 }
@@ -258,6 +259,7 @@ async fn run_group(
                 resume_latency_ms: task.result.resume_latency_ms,
                 reconnects: task.result.reconnects,
                 sequence_gaps: task.result.sequence_gaps,
+                background_operations: task.result.background_operations,
                 failure: task.result.failure,
             },
         )?;
@@ -393,6 +395,7 @@ async fn run_one(
                     resume_latency_ms: 0.0,
                     reconnects: 0,
                     sequence_gaps: 0,
+                    background_operations: 0,
                     failure: Some(format!(
                         "invalid driver output: {error}; stdout={:?}; stderr={:?}",
                         String::from_utf8_lossy(&output.stdout).trim(),
@@ -407,6 +410,7 @@ async fn run_one(
             resume_latency_ms: 0.0,
             reconnects: 0,
             sequence_gaps: 0,
+            background_operations: 0,
             failure: Some(format!(
                 "driver exited with {}; stderr={:?}",
                 output.status,
@@ -419,6 +423,7 @@ async fn run_one(
             resume_latency_ms: 0.0,
             reconnects: 0,
             sequence_gaps: 0,
+            background_operations: 0,
             failure: Some(format!("waiting for Playwright driver: {error}")),
         },
         Err(_) => DriverResult {
@@ -427,6 +432,7 @@ async fn run_one(
             resume_latency_ms: 0.0,
             reconnects: 0,
             sequence_gaps: 0,
+            background_operations: 0,
             failure: Some(format!("Playwright driver exceeded {driver_timeout:?}")),
         },
     };

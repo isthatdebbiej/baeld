@@ -19,6 +19,7 @@ const pages = {
     <h1>Account settings</h1><output id="clock"></output><p id="server-value">loading</p>
     <button id="save">Save exactly once</button><script>
     const session = new URLSearchParams(location.search).get('session');
+    window.__baeldAgent = {refreshes:0};
     let ticks = 0;
     setInterval(() => { ticks++; document.querySelector('#clock').textContent = String(ticks); }, 250);
     setInterval(async () => {
@@ -52,6 +53,7 @@ const pages = {
       document.querySelector('#rows').replaceChildren(fragment);
       document.querySelector('#summary').textContent = payload.sequence + ':' + visible.length;
       localStorage.setItem('baeld-dashboard-sequence', String(payload.sequence));
+      window.__baeldAgent.refreshes++;
     }
     refresh();
     setInterval(refresh, 500);

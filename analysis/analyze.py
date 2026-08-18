@@ -80,6 +80,9 @@ def summarize(tasks):
             "wait_cpu_median_ci95": bootstrap_ci(wait_cpu),
             "reconnects": sum(v["reconnects"] for v in values),
             "sequence_gaps": sum(v["sequence_gaps"] for v in values),
+            "mean_background_operations": float(np.mean([
+                v.get("background_operations", 0) for v in values
+            ])),
         })
     return rows
 

@@ -11,7 +11,7 @@ use crate::metrics::ResourceSample;
 use crate::policy::Mechanism;
 use crate::protocol::Phase;
 
-pub const EVENT_SCHEMA_VERSION: u16 = 2;
+pub const EVENT_SCHEMA_VERSION: u16 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Event {
@@ -49,6 +49,8 @@ pub enum EventKind {
         resume_latency_ms: f64,
         reconnects: u64,
         sequence_gaps: u64,
+        #[serde(default)]
+        background_operations: u64,
         #[serde(skip_serializing_if = "Option::is_none")]
         failure: Option<String>,
     },
