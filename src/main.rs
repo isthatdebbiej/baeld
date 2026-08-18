@@ -45,7 +45,7 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Run the small, four-mechanism smoke benchmark.
+    /// Run all four mechanisms and retain application-policy failures.
     Smoke {
         /// Directory in which to create the immutable result run.
         #[arg(long, default_value = "results")]

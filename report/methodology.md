@@ -33,6 +33,11 @@ Baeld CPU is reported separately and added to Chromium CPU as the net resource r
 
 Application failures are retained. A run may be marked infrastructure-invalid only when the workload server is unavailable, the browser never launches, the host loses required cgroup control, or the benchmark process is externally interrupted. Every exclusion and its raw artifact must be published.
 
+CLI exit status distinguishes these categories. A completed benchmark with
+application-policy failures exits successfully and records those failures.
+Harness, host-control, launch, protocol, or cleanup errors return a failing exit
+status.
+
 Complete-task CPU remains primary. Browser CPU measured strictly from the
 acknowledged `waiting_for_model` transition to the received `acting` transition
 is diagnostic: it explains whether savings occur during the wait but cannot by

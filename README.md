@@ -23,6 +23,16 @@ Baeld asks which mechanism reduces **complete-task CPU per successful task** wit
 Windows is supported only for editing, JavaScript syntax checks, analysis, and Rust tests that do not require Linux.
 The optional `scripts/dev-registry-proxy.mjs` exists only for restricted Windows development environments whose Schannel cannot reach crates.io; Linux CI and releases use crates.io directly.
 
+## Compatibility
+
+| Environment | Status | Intended use |
+|---|---|---|
+| Ubuntu 24.04 x86-64, cgroup v2 | Primary | Final reproducible measurements |
+| Ubuntu 22.04 x86-64, cgroup v2 | Development-tested | Falsification and implementation gates |
+| WSL2 | Development-only | Editing and short premise checks |
+| Windows and macOS hosts | No benchmark support | Editing, pure tests, and analysis only |
+| Root or `--no-sandbox` Chromium | Refused | Unsupported and unsafe |
+
 ## Setup
 
 ```bash
@@ -71,6 +81,11 @@ just plot results/<run-id>
 python analysis/paired.py results/<run-id>
 ```
 
+`smoke` exits successfully when the harness and cleanup complete, even when a
+mechanism fails an application oracle. Those failures are benchmark evidence
+and remain in `events.jsonl`; infrastructure errors still make the command
+fail.
+
 `summarize` reports net CPU change against the matching baseline and labels
 compatibility evidence as `failure-observed` or `no-failure-observed`. The
 latter deliberately does not mean safe. Cells with fewer than the declared 20
@@ -89,6 +104,18 @@ Baeld never requires Chromium to run as root and never passes `--no-sandbox`. Th
 ## Project status
 
 The current objective is to falsify or validate the underlying hypothesis before expanding the CLI. See [methodology](report/methodology.md), [limitations](report/limitations.md), and the [experiment ledger](experiments/LOG.md).
+
+## Release packaging
+
+From a clean exact release commit, create the same Linux artifact as CI with:
+
+```bash
+scripts/package-release.sh v0.1.0
+```
+
+Pushing a `v*` tag creates a GitHub release containing the Linux x86-64 archive
+and SHA-256 checksum. Raw datasets remain a deliberate manual attachment; the
+workflow never uploads ignored development results.
 
 ## License
 

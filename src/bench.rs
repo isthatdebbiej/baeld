@@ -113,18 +113,14 @@ struct Environment {
 }
 
 pub async fn run_smoke(output: &Path) -> Result<()> {
-    run_config_impl(Path::new("experiments/smoke.toml"), output, true).await
+    run_config_impl(Path::new("experiments/smoke.toml"), output).await
 }
 
 pub async fn run_config(config_path: &Path, output: &Path) -> Result<()> {
-    run_config_impl(config_path, output, false).await
+    run_config_impl(config_path, output).await
 }
 
-async fn run_config_impl(
-    config_path: &Path,
-    output: &Path,
-    require_all_successful: bool,
-) -> Result<()> {
+async fn run_config_impl(config_path: &Path, output: &Path) -> Result<()> {
     if !cfg!(target_os = "linux") {
         bail!("Baeld benchmarks require Linux with cgroup v2; use Windows only for development");
     }
@@ -161,9 +157,9 @@ async fn run_config_impl(
 
     println!("Results: {}", run_dir.display());
     crate::summarize::run(&run_dir, false)?;
-    if require_all_successful && !all_successful {
-        bail!(
-            "smoke benchmark had one or more failed tasks; refusing to start a larger experiment"
+    if !all_successful {
+        eprintln!(
+            "Application-policy failures were retained in the dataset; the benchmark harness completed successfully"
         );
     }
     Ok(())
