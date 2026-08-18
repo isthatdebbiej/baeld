@@ -28,7 +28,7 @@ validation sequence.
 - Ubuntu 24.04 x86-64 or a comparable systemd-based Linux distribution.
 - cgroup v2 with delegated `cpu`, `memory`, `io`, and `pids` controllers.
 - Unprivileged Chromium sandboxing.
-- Rust 1.85, Node 22, and pinned Playwright Chromium.
+- Rust 1.85, Node 22.18+, Bun 1.3.14, and pinned Playwright Chromium.
 
 Windows is supported only for editing, JavaScript syntax checks, analysis, and Rust tests that do not require Linux.
 The optional `scripts/dev-registry-proxy.mjs` exists only for restricted Windows development environments whose Schannel cannot reach crates.io; Linux CI and releases use crates.io directly.
@@ -61,6 +61,7 @@ just test     # pure tests and JavaScript syntax
 just smoke    # short four-mechanism experiment
 scripts/run-scoped.sh bench --config experiments/concurrency-gate.toml # schema/concurrency gate
 scripts/run-scoped.sh bench --config experiments/ubuntu24-focused-pilot.toml # 480-task focused pilot
+scripts/run-scoped.sh bench --config experiments/stagehand-gate.toml # 32-task Stagehand ownership gate
 just pilot    # controlled pilot matrix
 ```
 

@@ -114,8 +114,10 @@ struct Environment {
     host_steal_ticks_start: u64,
     chromium_version: String,
     node_version: String,
+    driver_runtime_version: String,
     rust_version: String,
     playwright_version: String,
+    stagehand_version: String,
     git_sha: String,
     git_dirty: bool,
 }
@@ -700,13 +702,24 @@ fn write_environment(run_dir: &Path, config: &BenchConfig) -> Result<()> {
         kernel_command_line: read_trimmed("/proc/cmdline"),
         host_steal_ticks_start: host_steal_ticks(),
         chromium_version: command_line(config.chromium.to_string_lossy().as_ref(), &["--version"]),
-        node_version: command_line(config.node.to_string_lossy().as_ref(), &["--version"]),
+        node_version: command_line("node", &["--version"]),
+        driver_runtime_version: command_line(
+            config.node.to_string_lossy().as_ref(),
+            &["--version"],
+        ),
         rust_version: command_line("rustc", &["--version", "--verbose"]),
         playwright_version: command_line(
             config.node.to_string_lossy().as_ref(),
             &[
                 "-p",
                 "require('./node_modules/playwright/package.json').version",
+            ],
+        ),
+        stagehand_version: command_line(
+            config.node.to_string_lossy().as_ref(),
+            &[
+                "-p",
+                "require('./node_modules/@browserbasehq/stagehand/package.json').version",
             ],
         ),
         git_sha: command_line("git", &["rev-parse", "HEAD"]),

@@ -2,7 +2,7 @@ set shell := ["bash", "-cu"]
 
 test:
     cargo test
-    npm run check
+    bun run check
 
 doctor:
     cargo build --release --locked

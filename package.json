@@ -3,13 +3,14 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18.0"
   },
   "scripts": {
     "server": "node workloads/server.mjs",
-    "check": "node --check workloads/server.mjs && node --check workloads/driver/driver.mjs"
+    "check": "node --check workloads/server.mjs && node --check workloads/driver/driver.mjs && node --check workloads/driver/stagehand.mjs"
   },
   "dependencies": {
+    "@browserbasehq/stagehand": "4.0.1",
     "playwright": "1.62.1",
     "ws": "8.21.3"
   }

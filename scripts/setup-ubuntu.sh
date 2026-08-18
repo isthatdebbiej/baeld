@@ -22,8 +22,12 @@ source "$HOME/.cargo/env"
 rustup toolchain install 1.85.0 --profile minimal
 rustup override set 1.85.0
 
-npm ci
-npx playwright install --with-deps chromium
+if ! command -v bun >/dev/null || [[ "$(bun --version)" != "1.3.14" ]]; then
+  sudo npm install -g bun@1.3.14
+fi
+
+bun ci
+bunx playwright install --with-deps chromium
 mkdir -p .baeld
 chrome_path="$(node -e "import('playwright').then(p => console.log(p.chromium.executablePath()))")"
 ln -sfn "$chrome_path" .baeld/chromium

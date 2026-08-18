@@ -40,6 +40,14 @@ correctness and accounting checks.
 Stagehand is the closest next step because its browser session can be exercised
 through Playwright/CDP while Baeld owns the local Chromium process tree.
 
+The first adapter pins Stagehand 4.0.1 and runs it under Bun 1.3.14. It attaches
+to Baeld's existing Chromium through Stagehand's `localBrowser.connect` API; it
+does not let Stagehand launch an unaccounted browser. Stagehand's extension CDP
+connection requires `--remote-allow-origins=*`, so this flag is confined to the
+Stagehand experiment and the debugging listener remains bound to localhost.
+Adapter shutdown is bounded because Baeld, not Stagehand, is the authoritative
+owner responsible for terminating the Chromium process tree.
+
 Start with 32 tasks: dashboard and WebSocket, baseline and cgroup freeze,
 5-second waits, concurrency one, four paired blocks. Gate expansion on complete
 process membership and exact oracle results. Then run the four-mechanism matrix
