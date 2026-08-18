@@ -68,12 +68,15 @@ Summarize and plot a run:
 ```bash
 cargo run -- summarize results/<run-id>
 just plot results/<run-id>
+python analysis/paired.py results/<run-id>
 ```
 
 `summarize` reports net CPU change against the matching baseline and labels
 compatibility evidence as `failure-observed` or `no-failure-observed`. The
 latter deliberately does not mean safe. Cells with fewer than the declared 20
 runs remain `development-only` in JSON output.
+The paired analyzer emits bootstrap intervals for concurrency-one randomized
+blocks and states its occurrence-order pairing assumption in every output row.
 
 ## Correctness model
 
