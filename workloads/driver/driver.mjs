@@ -32,6 +32,7 @@ try {
   await page.locator("h1").waitFor();
   if (workload === "websocket") await page.waitForFunction(() => window.__baeld?.sequences.length >= 2);
 
+  const backgroundBefore = await backgroundOperations(page);
   await phase.set("waiting_for_model", waitMs);
   if (mechanism === "chrome-lifecycle-freeze") {
     await cdp.send("Page.setWebLifecycleState", {state:"frozen"});
@@ -44,6 +45,7 @@ try {
   }
   await phase.set("acting");
   resumeLatencyMs = performance.now() - resumeStarted;
+  const backgroundAfter = await backgroundOperations(page);
 
   if (workload !== "static") {
     await page.locator("#save").click();
@@ -65,6 +67,7 @@ try {
     resume_latency_ms: resumeLatencyMs,
     reconnects: live.reconnects ?? 0,
     sequence_gaps: gaps,
+    background_operations: Math.max(0, backgroundAfter - backgroundBefore),
     failure: oracle.failure ?? (gaps ? `${gaps} websocket sequence gaps` : null)
   }));
 } catch (error) {
@@ -74,6 +77,7 @@ try {
     resume_latency_ms:resumeLatencyMs,
     reconnects:0,
     sequence_gaps:0,
+    background_operations:0,
     failure:error?.stack ?? String(error)
   }));
 } finally {
@@ -146,6 +150,14 @@ function sequenceGaps(values) {
   let gaps = 0;
   for (let i=1; i<values.length; i++) if (values[i] > values[i-1] + 1) gaps += values[i]-values[i-1]-1;
   return gaps;
+}
+
+async function backgroundOperations(page) {
+  return page.evaluate(name => {
+    if (name === "agent-dashboard") return window.__baeldAgent?.refreshes ?? 0;
+    if (name === "websocket") return window.__baeld?.sequences.length ?? 0;
+    return 0;
+  }, workload);
 }
 
 function required(name) {

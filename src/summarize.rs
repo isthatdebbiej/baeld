@@ -20,6 +20,7 @@ struct Aggregate {
     resume_latency_ms: Vec<f64>,
     reconnects: u64,
     sequence_gaps: u64,
+    background_operations: u64,
 }
 
 #[derive(Debug, Serialize)]
@@ -38,6 +39,7 @@ struct SummaryRow {
     median_resume_ms: Option<f64>,
     reconnects: u64,
     sequence_gaps: u64,
+    mean_background_operations: f64,
 }
 
 pub fn run(run: &Path, json: bool) -> Result<()> {
@@ -63,6 +65,7 @@ pub fn run(run: &Path, json: bool) -> Result<()> {
             resume_latency_ms,
             reconnects,
             sequence_gaps,
+            background_operations,
             ..
         } = event.kind
         {
@@ -79,6 +82,7 @@ pub fn run(run: &Path, json: bool) -> Result<()> {
             aggregate.resume_latency_ms.push(resume_latency_ms);
             aggregate.reconnects += reconnects;
             aggregate.sequence_gaps += sequence_gaps;
+            aggregate.background_operations += background_operations;
         }
     }
 
@@ -113,6 +117,7 @@ pub fn run(run: &Path, json: bool) -> Result<()> {
                 median_resume_ms: percentile(&aggregate.resume_latency_ms, 0.5),
                 reconnects: aggregate.reconnects,
                 sequence_gaps: aggregate.sequence_gaps,
+                mean_background_operations: ratio(aggregate.background_operations, aggregate.runs),
             }
         })
         .collect();
