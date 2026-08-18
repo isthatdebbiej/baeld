@@ -158,80 +158,7 @@ fn summarize(run: &Path) -> Result<Vec<SummaryRow>> {
         }
     }
 
-    let mut rows: Vec<_> = groups
-        .into_iter()
-        .map(|((mechanism, workload, wait_ms, concurrency), mut aggregate)| {
-            aggregate.latency_ms.sort_by(f64::total_cmp);
-            aggregate.resume_latency_ms.sort_by(f64::total_cmp);
-            SummaryRow {
-                mechanism,
-                workload,
-                wait_ms,
-                concurrency,
-                runs: aggregate.runs,
-                successes: aggregate.successes,
-                success_rate: ratio(aggregate.successes, aggregate.runs),
-                cpu_seconds_per_success: per_success(
-                    aggregate.browser_cpu_usec,
-                    aggregate.successes,
-                ),
-                wait_cpu_seconds_per_success: per_success(
-                    aggregate.browser_wait_cpu_usec,
-                    aggregate.successes,
-                ),
-                net_cpu_seconds_per_success: per_success(
-                    aggregate.browser_cpu_usec
-                        + aggregate.driver_cpu_usec
-                        + aggregate.governor_cpu_usec,
-                    aggregate.successes,
-                ),
-                cpu_throttled_seconds_per_success: per_success(
-                    aggregate.browser_cpu_throttled_usec,
-                    aggregate.successes,
-                ),
-                mean_memory_current_bytes: aggregate.browser_memory_current_bytes
-                    / aggregate.runs.max(1),
-                max_memory_peak_bytes: aggregate.browser_memory_peak_bytes,
-                io_read_bytes_per_success: per_success_raw(
-                    aggregate.browser_io_read_bytes,
-                    aggregate.successes,
-                ),
-                io_write_bytes_per_success: per_success_raw(
-                    aggregate.browser_io_write_bytes,
-                    aggregate.successes,
-                ),
-                max_cpu_pressure_some_avg10: aggregate.browser_cpu_pressure_some_avg10,
-                max_memory_pressure_some_avg10: aggregate.browser_memory_pressure_some_avg10,
-                max_io_pressure_some_avg10: aggregate.browser_io_pressure_some_avg10,
-                driver_cpu_seconds_per_success: per_success(
-                    aggregate.driver_cpu_usec,
-                    aggregate.successes,
-                ),
-                governor_cpu_seconds_per_success: per_success(
-                    aggregate.governor_cpu_usec,
-                    aggregate.successes,
-                ),
-                server_cpu_seconds_per_success: per_success(
-                    aggregate.server_cpu_usec,
-                    aggregate.successes,
-                ),
-                host_steal_ticks: aggregate.host_steal_ticks,
-                median_latency_ms: percentile(&aggregate.latency_ms, 0.5),
-                p95_latency_ms: percentile(&aggregate.latency_ms, 0.95),
-                median_resume_ms: percentile(&aggregate.resume_latency_ms, 0.5),
-                reconnects: aggregate.reconnects,
-                sequence_gaps: aggregate.sequence_gaps,
-                mean_background_operations: ratio(aggregate.background_operations, aggregate.runs),
-                compatibility: compatibility(&aggregate),
-                evidence_level: if aggregate.runs < HEADLINE_MIN_RUNS {
-                    "development-only"
-                } else {
-                    "headline-minimum-met"
-                },
-                net_cpu_change_vs_baseline_pct: None,
-            }
-        })
-        .collect();
+    let mut rows: Vec<_> = groups.into_iter().map(summary_row).collect();
 
     let baselines: BTreeMap<_, _> = rows
         .iter()
@@ -254,6 +181,79 @@ fn summarize(run: &Path) -> Result<Vec<SummaryRow>> {
             });
     }
     Ok(rows)
+}
+
+fn summary_row(
+    ((mechanism, workload, wait_ms, concurrency), mut aggregate): (
+        (String, String, u64, usize),
+        Aggregate,
+    ),
+) -> SummaryRow {
+    aggregate.latency_ms.sort_by(f64::total_cmp);
+    aggregate.resume_latency_ms.sort_by(f64::total_cmp);
+    SummaryRow {
+        mechanism,
+        workload,
+        wait_ms,
+        concurrency,
+        runs: aggregate.runs,
+        successes: aggregate.successes,
+        success_rate: ratio(aggregate.successes, aggregate.runs),
+        cpu_seconds_per_success: per_success(aggregate.browser_cpu_usec, aggregate.successes),
+        wait_cpu_seconds_per_success: per_success(
+            aggregate.browser_wait_cpu_usec,
+            aggregate.successes,
+        ),
+        net_cpu_seconds_per_success: per_success(
+            aggregate.browser_cpu_usec
+                + aggregate.driver_cpu_usec
+                + aggregate.governor_cpu_usec,
+            aggregate.successes,
+        ),
+        cpu_throttled_seconds_per_success: per_success(
+            aggregate.browser_cpu_throttled_usec,
+            aggregate.successes,
+        ),
+        mean_memory_current_bytes: aggregate.browser_memory_current_bytes / aggregate.runs.max(1),
+        max_memory_peak_bytes: aggregate.browser_memory_peak_bytes,
+        io_read_bytes_per_success: per_success_raw(
+            aggregate.browser_io_read_bytes,
+            aggregate.successes,
+        ),
+        io_write_bytes_per_success: per_success_raw(
+            aggregate.browser_io_write_bytes,
+            aggregate.successes,
+        ),
+        max_cpu_pressure_some_avg10: aggregate.browser_cpu_pressure_some_avg10,
+        max_memory_pressure_some_avg10: aggregate.browser_memory_pressure_some_avg10,
+        max_io_pressure_some_avg10: aggregate.browser_io_pressure_some_avg10,
+        driver_cpu_seconds_per_success: per_success(
+            aggregate.driver_cpu_usec,
+            aggregate.successes,
+        ),
+        governor_cpu_seconds_per_success: per_success(
+            aggregate.governor_cpu_usec,
+            aggregate.successes,
+        ),
+        server_cpu_seconds_per_success: per_success(
+            aggregate.server_cpu_usec,
+            aggregate.successes,
+        ),
+        host_steal_ticks: aggregate.host_steal_ticks,
+        median_latency_ms: percentile(&aggregate.latency_ms, 0.5),
+        p95_latency_ms: percentile(&aggregate.latency_ms, 0.95),
+        median_resume_ms: percentile(&aggregate.resume_latency_ms, 0.5),
+        reconnects: aggregate.reconnects,
+        sequence_gaps: aggregate.sequence_gaps,
+        mean_background_operations: ratio(aggregate.background_operations, aggregate.runs),
+        compatibility: compatibility(&aggregate),
+        evidence_level: if aggregate.runs < HEADLINE_MIN_RUNS {
+            "development-only"
+        } else {
+            "headline-minimum-met"
+        },
+        net_cpu_change_vs_baseline_pct: None,
+    }
 }
 
 fn print_table(rows: Vec<SummaryRow>) {
