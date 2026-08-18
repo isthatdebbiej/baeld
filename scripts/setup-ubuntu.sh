@@ -7,7 +7,7 @@ if [[ "$(uname -s)" != "Linux" ]]; then
 fi
 
 sudo apt-get update
-sudo apt-get install -y build-essential curl git jq just nodejs npm pkg-config python3 python3-venv
+sudo apt-get install -y build-essential curl git jq nodejs npm pkg-config python3 python3-venv
 
 if ! command -v rustup >/dev/null; then
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
