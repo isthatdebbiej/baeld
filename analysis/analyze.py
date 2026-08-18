@@ -83,7 +83,22 @@ def summarize(tasks):
             "mean_background_operations": float(np.mean([
                 v.get("background_operations", 0) for v in values
             ])),
+            "compatibility": "failure-observed" if (
+                len(successful) < len(values)
+                or any(v["reconnects"] > 0 or v["sequence_gaps"] > 0 for v in values)
+            ) else "no-failure-observed",
+            "evidence_level": "headline-minimum-met" if len(values) >= 20 else "development-only",
+            "net_cpu_change_vs_baseline_pct": None,
         })
+    baselines = {
+        (row["workload"], row["wait_ms"]): row["net_cpu_seconds_per_success"]
+        for row in rows if row["mechanism"] == "baseline"
+    }
+    for row in rows:
+        baseline = baselines.get((row["workload"], row["wait_ms"]))
+        current = row["net_cpu_seconds_per_success"]
+        if baseline and current is not None:
+            row["net_cpu_change_vs_baseline_pct"] = (current - baseline) / baseline * 100
     return rows
 
 

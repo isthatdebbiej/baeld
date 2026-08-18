@@ -70,6 +70,11 @@ cargo run -- summarize results/<run-id>
 just plot results/<run-id>
 ```
 
+`summarize` reports net CPU change against the matching baseline and labels
+compatibility evidence as `failure-observed` or `no-failure-observed`. The
+latter deliberately does not mean safe. Cells with fewer than the declared 20
+runs remain `development-only` in JSON output.
+
 ## Correctness model
 
 The static workload checks an exact DOM oracle. Mutating workloads verify a server-persisted update occurred exactly once. The controlled agent dashboard performs ordinary polling, JSON processing, sorting, formatting, and DOM reconciliation without a synthetic busy loop. The WebSocket workload reports reconnects and missing sequence numbers. Every measured task includes a post-resume settling window. Baeld reports complete-task CPU as the primary metric and browser CPU during the model-wait window as a diagnostic explaining where changes occur.

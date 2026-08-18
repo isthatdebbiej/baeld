@@ -8,6 +8,8 @@ use serde::Serialize;
 
 use crate::event::{Event, EventKind};
 
+const HEADLINE_MIN_RUNS: u64 = 20;
+
 #[derive(Debug, Default, Serialize)]
 struct Aggregate {
     runs: u64,
@@ -40,9 +42,23 @@ struct SummaryRow {
     reconnects: u64,
     sequence_gaps: u64,
     mean_background_operations: f64,
+    compatibility: &'static str,
+    evidence_level: &'static str,
+    net_cpu_change_vs_baseline_pct: Option<f64>,
 }
 
 pub fn run(run: &Path, json: bool) -> Result<()> {
+    let rows = summarize(run)?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&rows)?);
+    } else {
+        print_table(rows);
+    }
+    Ok(())
+}
+
+fn summarize(run: &Path) -> Result<Vec<SummaryRow>> {
     let events_path = run.join("events.jsonl");
     if !events_path.exists() {
         bail!("{} does not contain events.jsonl", run.display());
@@ -86,7 +102,7 @@ pub fn run(run: &Path, json: bool) -> Result<()> {
         }
     }
 
-    let rows: Vec<_> = groups
+    let mut rows: Vec<_> = groups
         .into_iter()
         .map(|((mechanism, workload, wait_ms), mut aggregate)| {
             aggregate.latency_ms.sort_by(f64::total_cmp);
@@ -118,44 +134,95 @@ pub fn run(run: &Path, json: bool) -> Result<()> {
                 reconnects: aggregate.reconnects,
                 sequence_gaps: aggregate.sequence_gaps,
                 mean_background_operations: ratio(aggregate.background_operations, aggregate.runs),
+                compatibility: compatibility(&aggregate),
+                evidence_level: if aggregate.runs < HEADLINE_MIN_RUNS {
+                    "development-only"
+                } else {
+                    "headline-minimum-met"
+                },
+                net_cpu_change_vs_baseline_pct: None,
             }
         })
         .collect();
 
-    if json {
-        println!("{}", serde_json::to_string_pretty(&rows)?);
-    } else {
-        println!(
-            "{:<28} {:<14} {:>7} {:>9} {:>12} {:>12} {:>12} {:>12}",
-            "mechanism",
-            "workload",
-            "wait",
-            "success",
-            "cpu/success",
-            "wait cpu",
-            "p50 ms",
-            "p95 ms"
-        );
-        for row in rows {
-            println!(
-                "{:<28} {:<14} {:>6}ms {:>4}/{:<4} {:>12} {:>12} {:>12.1} {:>12.1}",
-                row.mechanism,
-                row.workload,
-                row.wait_ms,
-                row.successes,
-                row.runs,
-                row.cpu_seconds_per_success
-                    .map(|v| format!("{v:.4}s"))
-                    .unwrap_or_else(|| "n/a".into()),
-                row.wait_cpu_seconds_per_success
-                    .map(|v| format!("{v:.4}s"))
-                    .unwrap_or_else(|| "n/a".into()),
-                row.median_latency_ms.unwrap_or_default(),
-                row.p95_latency_ms.unwrap_or_default(),
-            );
-        }
+    let baselines: BTreeMap<_, _> = rows
+        .iter()
+        .filter(|row| row.mechanism == "baseline")
+        .filter_map(|row| {
+            row.net_cpu_seconds_per_success
+                .map(|cpu| ((row.workload.clone(), row.wait_ms), cpu))
+        })
+        .collect();
+    for row in &mut rows {
+        row.net_cpu_change_vs_baseline_pct = row
+            .net_cpu_seconds_per_success
+            .zip(baselines.get(&(row.workload.clone(), row.wait_ms)).copied())
+            .and_then(|(current, baseline)| {
+                (baseline > 0.0).then(|| (current - baseline) / baseline * 100.0)
+            });
     }
-    Ok(())
+    Ok(rows)
+}
+
+fn print_table(rows: Vec<SummaryRow>) {
+    println!(
+        "{:<28} {:<14} {:>7} {:>9} {:>12} {:>10} {:<19}",
+        "mechanism", "workload", "wait", "success", "net cpu", "vs base", "compatibility"
+    );
+    for row in rows {
+        println!(
+            "{:<28} {:<14} {:>6}ms {:>4}/{:<4} {:>12} {:>10} {:<19}",
+            row.mechanism,
+            row.workload,
+            row.wait_ms,
+            row.successes,
+            row.runs,
+            row.net_cpu_seconds_per_success
+                .map(|v| format!("{v:.4}s"))
+                .unwrap_or_else(|| "n/a".into()),
+            row.net_cpu_change_vs_baseline_pct
+                .map(|v| format!("{v:+.1}%"))
+                .unwrap_or_else(|| "n/a".into()),
+            row.compatibility,
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_schema_one_fixture_and_marks_it_development_only() {
+        let run = Path::new(env!("CARGO_MANIFEST_DIR")).join("analysis/fixtures");
+        let rows = summarize(&run).unwrap();
+        assert_eq!(rows.len(), 2);
+        assert!(rows.iter().all(|row| row.evidence_level == "development-only"));
+        assert!(rows
+            .iter()
+            .all(|row| row.compatibility == "no-failure-observed"));
+        assert!(rows
+            .iter()
+            .all(|row| row.mean_background_operations == 0.0));
+    }
+
+    #[test]
+    fn any_application_failure_marks_the_cell_as_failure_observed() {
+        let aggregate = Aggregate {
+            runs: 3,
+            successes: 2,
+            ..Aggregate::default()
+        };
+        assert_eq!(compatibility(&aggregate), "failure-observed");
+
+        let reconnect = Aggregate {
+            runs: 3,
+            successes: 3,
+            reconnects: 1,
+            ..Aggregate::default()
+        };
+        assert_eq!(compatibility(&reconnect), "failure-observed");
+    }
 }
 
 fn ratio(numerator: u64, denominator: u64) -> f64 {
@@ -163,6 +230,17 @@ fn ratio(numerator: u64, denominator: u64) -> f64 {
         0.0
     } else {
         numerator as f64 / denominator as f64
+    }
+}
+
+fn compatibility(aggregate: &Aggregate) -> &'static str {
+    if aggregate.successes < aggregate.runs
+        || aggregate.reconnects > 0
+        || aggregate.sequence_gaps > 0
+    {
+        "failure-observed"
+    } else {
+        "no-failure-observed"
     }
 }
 
