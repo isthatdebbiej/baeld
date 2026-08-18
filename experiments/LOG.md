@@ -118,3 +118,21 @@ Every experiment entry must include its hypothesis, exact command, result, decis
 - Decision: The concurrency-accounting repair is validated. Do not enlarge the
   Ubuntu 22.04 matrix; move the next evidence run to a clean Ubuntu 24.04 host.
 - Artifacts: `results/1787023423-concurrency-development-gate-dd0e305b/`.
+
+## E008 — Clean Ubuntu 24.04 smoke gate
+
+- Hypothesis: The declared final operating-system family can run pinned
+  Chromium sandboxed, exercise delegated cgroups, and reproduce the development
+  compatibility distinction.
+- Command: `scripts/run-scoped.sh doctor` followed by
+  `scripts/run-scoped.sh smoke --output results`.
+- Result: `doctor` passed on Ubuntu 24.04.4, kernel 6.8, 8 vCPUs, and 32 GB RAM.
+  Ubuntu's AppArmor user-namespace restriction initially blocked downloaded
+  Chromium; a root-owned profile allowlisting only the pinned Playwright binary
+  restored the sandbox while the global restriction remained enabled. Smoke
+  completed 11 of 12 application tasks. Cgroup freeze caused one reconnect and
+  four WebSocket sequence gaps; the other mechanisms passed their WebSocket
+  tasks.
+- Decision: The clean host is valid for a pilot. Keep the AppArmor profile in
+  setup and never substitute `--no-sandbox` or a global sysctl disable.
+- Artifacts: `results/1787024847-smoke-a3fb2a58/`.
