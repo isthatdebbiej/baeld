@@ -136,3 +136,20 @@ Every experiment entry must include its hypothesis, exact command, result, decis
 - Decision: The clean host is valid for a pilot. Keep the AppArmor profile in
   setup and never substitute `--no-sandbox` or a global sysctl disable.
 - Artifacts: `results/1787024847-smoke-a3fb2a58/`.
+
+## E009 — Focused pilot attempt 1 (infrastructure-invalid)
+
+- Hypothesis: Five paired blocks across 5/10-second waits and concurrency one
+  and five will reproduce the long-wait CPU/correctness tradeoff on Ubuntu
+  24.04.
+- Command: `scripts/run-scoped.sh bench --config experiments/ubuntu24-focused-pilot.toml --output results`.
+- Result: The harness stopped after 85 terminal tasks because one Chromium
+  session cgroup returned `EBUSY` during removal. The cgroup and processes were
+  gone on inspection after the systemd scope exited. Phase-finished events for
+  the interrupted concurrency group were present, but its terminal records
+  were intentionally not fabricated.
+- Decision: Mark the complete attempt infrastructure-invalid and exclude it
+  from performance interpretation. Preserve it, add bounded retries for the
+  kernel's asynchronous final cgroup-reference release, then rerun the entire
+  focused matrix under a new run ID.
+- Artifacts: `results/1787025161-ubuntu24-focused-pilot-a2b6b487/`.

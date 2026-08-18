@@ -85,13 +85,30 @@ impl SessionCgroup {
         self.thaw().ok();
         self.kill_all().ok();
         let deadline = Instant::now() + Duration::from_secs(3);
-        while Instant::now() < deadline && !self.pids().unwrap_or_default().is_empty() {
+        loop {
+            if !self.pids().unwrap_or_default().is_empty() {
+                self.kill_all().ok();
+            }
+            match fs::remove_dir(&self.path) {
+                Ok(()) => {
+                    self.removed = true;
+                    return Ok(());
+                }
+                Err(_) if Instant::now() < deadline => {
+                    // A process can disappear from cgroup.procs before the
+                    // kernel releases its final cgroup reference. This is
+                    // common when several Chromium trees exit concurrently.
+                    // Treat EBUSY as transient and retry the removal rather
+                    // than invalidating an otherwise completed block.
+                }
+                Err(error) => {
+                    return Err(error).with_context(|| {
+                        format!("removing cgroup {}", self.path.display())
+                    });
+                }
+            }
             std::thread::sleep(Duration::from_millis(25));
         }
-        fs::remove_dir(&self.path)
-            .with_context(|| format!("removing cgroup {}", self.path.display()))?;
-        self.removed = true;
-        Ok(())
     }
 
     fn write(&self, file: &str, value: &str) -> Result<()> {
@@ -122,7 +139,10 @@ impl Drop for SessionCgroup {
         let _ = self.thaw();
         let _ = self.kill_all();
         let deadline = Instant::now() + Duration::from_secs(1);
-        while Instant::now() < deadline && !self.pids().unwrap_or_default().is_empty() {
+        while Instant::now() < deadline {
+            if fs::remove_dir(&self.path).is_ok() {
+                return;
+            }
             std::thread::sleep(Duration::from_millis(10));
         }
         let _ = fs::remove_dir(&self.path);
