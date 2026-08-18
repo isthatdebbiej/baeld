@@ -11,7 +11,7 @@ use crate::metrics::ResourceSample;
 use crate::policy::Mechanism;
 use crate::protocol::Phase;
 
-pub const EVENT_SCHEMA_VERSION: u16 = 3;
+pub const EVENT_SCHEMA_VERSION: u16 = 4;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Event {
@@ -37,11 +37,31 @@ pub enum EventKind {
     TaskFinished {
         workload: String,
         wait_ms: u64,
+        #[serde(default = "default_concurrency")]
+        concurrency: usize,
+        #[serde(default)]
+        block_id: u64,
         success: bool,
         latency_ms: f64,
         browser_cpu_usec: u64,
         #[serde(default)]
         browser_wait_cpu_usec: u64,
+        #[serde(default)]
+        browser_cpu_throttled_usec: u64,
+        #[serde(default)]
+        browser_memory_current_bytes: u64,
+        #[serde(default)]
+        browser_memory_peak_bytes: Option<u64>,
+        #[serde(default)]
+        browser_io_read_bytes: u64,
+        #[serde(default)]
+        browser_io_write_bytes: u64,
+        #[serde(default)]
+        browser_cpu_pressure_some_avg10: Option<f64>,
+        #[serde(default)]
+        browser_memory_pressure_some_avg10: Option<f64>,
+        #[serde(default)]
+        browser_io_pressure_some_avg10: Option<f64>,
         driver_cpu_usec: u64,
         governor_cpu_usec: u64,
         server_cpu_usec: u64,
@@ -54,6 +74,10 @@ pub enum EventKind {
         #[serde(skip_serializing_if = "Option::is_none")]
         failure: Option<String>,
     },
+}
+
+fn default_concurrency() -> usize {
+    1
 }
 
 #[derive(Clone)]

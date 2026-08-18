@@ -41,6 +41,7 @@ jobs:
       - run: pip install -r analysis/requirements.txt
       - run: python -m py_compile analysis/analyze.py
       - run: python -m py_compile analysis/paired.py
+      - run: python -m unittest analysis.test_paired
       - run: python analysis/analyze.py analysis/fixtures --output /tmp/baeld-analysis
       - run: python analysis/paired.py analysis/fixtures --output /tmp/baeld-paired.json
 

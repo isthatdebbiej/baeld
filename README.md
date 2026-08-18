@@ -94,8 +94,11 @@ fail.
 compatibility evidence as `failure-observed` or `no-failure-observed`. The
 latter deliberately does not mean safe. Cells with fewer than the declared 20
 runs remain `development-only` in JSON output.
-The paired analyzer emits bootstrap intervals for concurrency-one randomized
-blocks and states its occurrence-order pairing assumption in every output row.
+Event schema 4 records concurrency and randomized block identity on every
+terminal task. The paired analyzer keeps concurrency cells separate, pairs by
+block identity, and retains failed-attempt CPU in the correctness-adjusted
+numerator. Older schema 1–3 datasets remain readable, but occurrence-order
+pairing is allowed only for their concurrency-one runs.
 
 ## Correctness model
 

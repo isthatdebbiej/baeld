@@ -8,14 +8,24 @@ During browser-agent inference waits, which mechanism—default Chromium behavio
 
 The primary outcome is CPU seconds consumed by the Chromium cgroup per successful complete task. The task window begins before observation and ends after action, authoritative verification, and a fixed three-second settling period. This captures work deferred until the browser resumes.
 
-Baeld CPU is reported separately and added to Chromium CPU as the net resource result. Failed tasks remain in the dataset and are never converted into resource savings.
+Chromium, Playwright driver, Baeld governor, and workload-server CPU are
+reported separately. The primary net CPU numerator is Chromium + driver +
+governor CPU; workload-server CPU is reported as an experimental control rather
+than credited to a browser policy. Failed-attempt CPU remains in the numerator
+and is never converted into resource savings.
+
+Terminal schema-4 events also record cgroup CPU throttling, current and peak
+memory, read/write bytes, and CPU/memory/I/O PSI diagnostics. These are
+secondary diagnostics only: v0.1 does not claim memory or I/O optimization.
 
 ## Experimental controls
 
 - Exact Chromium, Playwright, Rust, Node, kernel, VM, browser flags, and repository revision are recorded.
 - Each measured task uses a fresh Chromium process and profile. Browser launch occurs before the primary accounting window, so startup cost is excluded and cache state is consistently cold.
 - Mechanism order is randomized.
-- The final study uses paired blocks and at least twenty repetitions for headline comparisons.
+- Every terminal event records its concurrency and randomized block identity.
+  Analysis never pools concurrency levels. The final study uses paired blocks
+  and at least twenty repetitions for headline comparisons.
 - Workload and coordinator CPUs are separated from Chromium CPUs using affinity during final runs.
 - Default Chromium background throttling remains enabled in the primary experiment.
 

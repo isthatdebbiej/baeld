@@ -23,6 +23,8 @@ def load_tasks(path):
                 continue
             event["mechanism"] = mechanism_slug(event["mechanism"])
             event["source_line"] = line_no
+            event.setdefault("concurrency", 1)
+            event.setdefault("block_id", 0)
             tasks.append(event)
     return tasks
 
@@ -51,7 +53,7 @@ def bootstrap_ci(values, statistic=np.median, samples=5000, seed=20260817):
 def summarize(tasks):
     groups = defaultdict(list)
     for task in tasks:
-        key = (task["workload"], task["wait_ms"], task["mechanism"])
+        key = (task["workload"], task["wait_ms"], task["concurrency"], task["mechanism"])
         groups[key].append(task)
     rows = []
     for key, values in sorted(groups.items()):
@@ -65,14 +67,25 @@ def summarize(tasks):
         rows.append({
             "workload": key[0],
             "wait_ms": key[1],
-            "mechanism": key[2],
+            "concurrency": key[2],
+            "mechanism": key[3],
             "runs": len(values),
             "successes": len(successful),
             "success_rate": len(successful) / len(values),
             "cpu_seconds_per_success": sum(cpu) / len(successful) if successful else None,
             "wait_cpu_seconds_per_success": sum(wait_cpu) / len(successful) if successful else None,
+            "cpu_throttled_seconds_per_success": sum(v.get("browser_cpu_throttled_usec", 0) for v in values) / 1e6 / len(successful) if successful else None,
+            "mean_memory_current_bytes": float(np.mean([v.get("browser_memory_current_bytes", 0) for v in values])),
+            "max_memory_peak_bytes": max((v.get("browser_memory_peak_bytes") or 0 for v in values), default=0) or None,
+            "io_read_bytes_per_success": sum(v.get("browser_io_read_bytes", 0) for v in values) / len(successful) if successful else None,
+            "io_write_bytes_per_success": sum(v.get("browser_io_write_bytes", 0) for v in values) / len(successful) if successful else None,
+            "max_cpu_pressure_some_avg10": max((v.get("browser_cpu_pressure_some_avg10") or 0 for v in values), default=0),
+            "max_memory_pressure_some_avg10": max((v.get("browser_memory_pressure_some_avg10") or 0 for v in values), default=0),
+            "max_io_pressure_some_avg10": max((v.get("browser_io_pressure_some_avg10") or 0 for v in values), default=0),
             "net_cpu_seconds_per_success": total_cpu / len(successful) if successful else None,
-            "server_cpu_seconds": sum(v["server_cpu_usec"] for v in values) / 1e6,
+            "driver_cpu_seconds_per_success": sum(v["driver_cpu_usec"] for v in values) / 1e6 / len(successful) if successful else None,
+            "governor_cpu_seconds_per_success": sum(v["governor_cpu_usec"] for v in values) / 1e6 / len(successful) if successful else None,
+            "server_cpu_seconds_per_success": sum(v["server_cpu_usec"] for v in values) / 1e6 / len(successful) if successful else None,
             "host_steal_ticks": sum(v["host_steal_ticks"] for v in values),
             "median_latency_ms": float(np.median([v["latency_ms"] for v in values])),
             "p95_latency_ms": float(np.percentile([v["latency_ms"] for v in values], 95)),
@@ -91,11 +104,11 @@ def summarize(tasks):
             "net_cpu_change_vs_baseline_pct": None,
         })
     baselines = {
-        (row["workload"], row["wait_ms"]): row["net_cpu_seconds_per_success"]
+        (row["workload"], row["wait_ms"], row["concurrency"]): row["net_cpu_seconds_per_success"]
         for row in rows if row["mechanism"] == "baseline"
     }
     for row in rows:
-        baseline = baselines.get((row["workload"], row["wait_ms"]))
+        baseline = baselines.get((row["workload"], row["wait_ms"], row["concurrency"]))
         current = row["net_cpu_seconds_per_success"]
         if baseline and current is not None:
             row["net_cpu_change_vs_baseline_pct"] = (current - baseline) / baseline * 100
@@ -105,7 +118,10 @@ def summarize(tasks):
 def plot(rows, output):
     workloads = {row["workload"] for row in rows}
     workload = "agent-dashboard" if "agent-dashboard" in workloads else "normal-spa"
-    representative = [r for r in rows if r["workload"] == workload and r["wait_ms"] == 5000]
+    representative = [
+        r for r in rows
+        if r["workload"] == workload and r["wait_ms"] == 5000 and r["concurrency"] == 1
+    ]
     if not representative:
         return
     labels = [r["mechanism"] for r in representative]

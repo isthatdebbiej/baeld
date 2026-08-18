@@ -83,6 +83,14 @@ struct CompletedTask {
     result: DriverResult,
     browser_cpu_usec: u64,
     browser_wait_cpu_usec: u64,
+    browser_cpu_throttled_usec: u64,
+    browser_memory_current_bytes: u64,
+    browser_memory_peak_bytes: Option<u64>,
+    browser_io_read_bytes: u64,
+    browser_io_write_bytes: u64,
+    browser_cpu_pressure_some_avg10: Option<f64>,
+    browser_memory_pressure_some_avg10: Option<f64>,
+    browser_io_pressure_some_avg10: Option<f64>,
     driver_cpu_usec: u64,
 }
 
@@ -173,10 +181,12 @@ async fn run_matrix(
     mechanisms: Vec<Mechanism>,
 ) -> Result<bool> {
     let mut all_successful = true;
+    let mut block_id = 0_u64;
     for workload in &config.workloads {
         for &wait_ms in &config.waits_ms {
             for &concurrency in &config.concurrency {
                 for _ in 0..config.repetitions {
+                    block_id += 1;
                     let mut block = mechanisms.clone();
                     block.shuffle(&mut rand::thread_rng());
                     for mechanism in block {
@@ -189,6 +199,7 @@ async fn run_matrix(
                             workload,
                             wait_ms,
                             concurrency,
+                            block_id,
                         )
                         .await?;
                     }
@@ -209,6 +220,7 @@ async fn run_group(
     workload: &str,
     wait_ms: u64,
     concurrency: usize,
+    block_id: u64,
 ) -> Result<bool> {
     let governor_before = process_cpu_usec();
     let server_before = server_cgroup.sample()?;
@@ -244,10 +256,20 @@ async fn run_group(
             EventKind::TaskFinished {
                 workload: task.workload,
                 wait_ms: task.wait_ms,
+                concurrency,
+                block_id,
                 success: task.result.success,
                 latency_ms: task.result.latency_ms,
                 browser_cpu_usec: task.browser_cpu_usec,
                 browser_wait_cpu_usec: task.browser_wait_cpu_usec,
+                browser_cpu_throttled_usec: task.browser_cpu_throttled_usec,
+                browser_memory_current_bytes: task.browser_memory_current_bytes,
+                browser_memory_peak_bytes: task.browser_memory_peak_bytes,
+                browser_io_read_bytes: task.browser_io_read_bytes,
+                browser_io_write_bytes: task.browser_io_write_bytes,
+                browser_cpu_pressure_some_avg10: task.browser_cpu_pressure_some_avg10,
+                browser_memory_pressure_some_avg10: task.browser_memory_pressure_some_avg10,
+                browser_io_pressure_some_avg10: task.browser_io_pressure_some_avg10,
                 driver_cpu_usec: task.driver_cpu_usec,
                 governor_cpu_usec: governor_share,
                 server_cpu_usec: server_share,
@@ -449,6 +471,14 @@ async fn run_one(
         result: parsed,
         browser_cpu_usec: delta.cpu_usage_usec,
         browser_wait_cpu_usec,
+        browser_cpu_throttled_usec: delta.cpu_throttled_usec,
+        browser_memory_current_bytes: delta.memory_current_bytes,
+        browser_memory_peak_bytes: delta.memory_peak_bytes,
+        browser_io_read_bytes: delta.io_read_bytes,
+        browser_io_write_bytes: delta.io_write_bytes,
+        browser_cpu_pressure_some_avg10: delta.cpu_pressure_some_avg10,
+        browser_memory_pressure_some_avg10: delta.memory_pressure_some_avg10,
+        browser_io_pressure_some_avg10: delta.io_pressure_some_avg10,
         driver_cpu_usec: driver_delta.cpu_usage_usec,
     })
 }
