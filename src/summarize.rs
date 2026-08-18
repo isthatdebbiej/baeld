@@ -188,6 +188,37 @@ fn print_table(rows: Vec<SummaryRow>) {
     }
 }
 
+fn ratio(numerator: u64, denominator: u64) -> f64 {
+    if denominator == 0 {
+        0.0
+    } else {
+        numerator as f64 / denominator as f64
+    }
+}
+
+fn compatibility(aggregate: &Aggregate) -> &'static str {
+    if aggregate.successes < aggregate.runs
+        || aggregate.reconnects > 0
+        || aggregate.sequence_gaps > 0
+    {
+        "failure-observed"
+    } else {
+        "no-failure-observed"
+    }
+}
+
+fn per_success(usec: u64, successes: u64) -> Option<f64> {
+    (successes > 0).then(|| usec as f64 / 1_000_000.0 / successes as f64)
+}
+
+fn percentile(values: &[f64], p: f64) -> Option<f64> {
+    if values.is_empty() {
+        return None;
+    }
+    let index = ((values.len() - 1) as f64 * p).ceil() as usize;
+    values.get(index).copied()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -223,35 +254,4 @@ mod tests {
         };
         assert_eq!(compatibility(&reconnect), "failure-observed");
     }
-}
-
-fn ratio(numerator: u64, denominator: u64) -> f64 {
-    if denominator == 0 {
-        0.0
-    } else {
-        numerator as f64 / denominator as f64
-    }
-}
-
-fn compatibility(aggregate: &Aggregate) -> &'static str {
-    if aggregate.successes < aggregate.runs
-        || aggregate.reconnects > 0
-        || aggregate.sequence_gaps > 0
-    {
-        "failure-observed"
-    } else {
-        "no-failure-observed"
-    }
-}
-
-fn per_success(usec: u64, successes: u64) -> Option<f64> {
-    (successes > 0).then(|| usec as f64 / 1_000_000.0 / successes as f64)
-}
-
-fn percentile(values: &[f64], p: f64) -> Option<f64> {
-    if values.is_empty() {
-        return None;
-    }
-    let index = ((values.len() - 1) as f64 * p).ceil() as usize;
-    values.get(index).copied()
 }
