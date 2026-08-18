@@ -29,6 +29,34 @@ const pages = {
       await fetch('/api/mutate?session=' + encodeURIComponent(session), {method:'POST'});
     };
     </script>`,
+  "agent-dashboard": `<!doctype html><meta charset="utf-8"><title>Baeld agent dashboard</title>
+    <h1>Operations dashboard</h1><p id="summary">loading</p><table><tbody id="rows"></tbody></table>
+    <button id="save">Save exactly once</button><script>
+    const session = new URLSearchParams(location.search).get('session');
+    const formatter = new Intl.NumberFormat('en-US', {style:'currency', currency:'USD'});
+    async function refresh() {
+      const response = await fetch('/api/dashboard?session=' + encodeURIComponent(session));
+      const payload = await response.json();
+      const visible = payload.records
+        .filter(record => record.status !== 'archived')
+        .sort((left, right) => right.updated_at - left.updated_at)
+        .slice(0, 60);
+      const fragment = document.createDocumentFragment();
+      for (const record of visible) {
+        const row = document.createElement('tr');
+        row.dataset.id = record.id;
+        row.innerHTML = '<td>' + record.name + '</td><td>' + record.status +
+          '</td><td>' + formatter.format(record.amount) + '</td>';
+        fragment.appendChild(row);
+      }
+      document.querySelector('#rows').replaceChildren(fragment);
+      document.querySelector('#summary').textContent = payload.sequence + ':' + visible.length;
+      localStorage.setItem('baeld-dashboard-sequence', String(payload.sequence));
+    }
+    refresh();
+    setInterval(refresh, 500);
+    document.querySelector('#save').onclick = () => fetch('/api/mutate?session=' + encodeURIComponent(session), {method:'POST'});
+    </script>`,
   "noisy-stress": `<!doctype html><meta charset="utf-8"><title>Baeld stress</title>
     <h1>Stress workload</h1><output id="counter"></output><button id="save">Save exactly once</button>
     <script>
@@ -70,6 +98,17 @@ const server = http.createServer(async (request, response) => {
   }
   if (request.method === "GET" && url.pathname === "/api/state") {
     return json(response, 200, stateFor(url.searchParams.get("session")));
+  }
+  if (request.method === "GET" && url.pathname === "/api/dashboard") {
+    const state = stateFor(url.searchParams.get("session"));
+    const records = Array.from({length: 240}, (_, index) => ({
+      id: index,
+      name: "Account " + index,
+      status: (index + state.sequence) % 11 === 0 ? "archived" : (index % 3 === 0 ? "pending" : "active"),
+      amount: ((index * 7919 + state.sequence * 17) % 100000) / 100,
+      updated_at: state.sequence * 1000 - ((index * 37) % 10000)
+    }));
+    return json(response, 200, {sequence:state.sequence, records});
   }
   const workload = url.pathname.slice(1) || "static";
   if (pages[workload]) {

@@ -81,6 +81,7 @@ struct CompletedTask {
     wait_ms: u64,
     result: DriverResult,
     browser_cpu_usec: u64,
+    browser_wait_cpu_usec: u64,
     driver_cpu_usec: u64,
 }
 
@@ -249,6 +250,7 @@ async fn run_group(
                 success: task.result.success,
                 latency_ms: task.result.latency_ms,
                 browser_cpu_usec: task.browser_cpu_usec,
+                browser_wait_cpu_usec: task.browser_wait_cpu_usec,
                 driver_cpu_usec: task.driver_cpu_usec,
                 governor_cpu_usec: governor_share,
                 server_cpu_usec: server_share,
@@ -376,10 +378,11 @@ async fn run_one(
     let after = cgroup.sample()?;
     sampler.abort();
     let _ = sampler.await;
-    match tokio::time::timeout(Duration::from_secs(2), controller).await {
+    let browser_wait_cpu_usec = match tokio::time::timeout(Duration::from_secs(2), controller).await
+    {
         Ok(joined) => joined.context("phase controller panicked")??,
         Err(_) => bail!("phase controller did not stop after finished phase"),
-    }
+    };
 
     let parsed = match output {
         Ok(Ok(output)) if output.status.success() => {
@@ -443,6 +446,7 @@ async fn run_one(
         wait_ms,
         result: parsed,
         browser_cpu_usec: delta.cpu_usage_usec,
+        browser_wait_cpu_usec,
         driver_cpu_usec: driver_delta.cpu_usage_usec,
     })
 }
@@ -453,12 +457,14 @@ async fn serve_phase_protocol(
     writer: EventWriter,
     mechanism: Mechanism,
     session_id: String,
-) -> Result<()> {
+) -> Result<u64> {
     let (stream, _) = listener.accept().await?;
     let (reader, mut output) = stream.into_split();
     let mut lines = BufReader::new(reader).lines();
     let mut last_generation = 0;
     let mut pending_freeze: Option<tokio::task::JoinHandle<()>> = None;
+    let mut wait_start = None;
+    let mut browser_wait_cpu_usec = 0;
 
     while let Some(line) = lines.next_line().await? {
         let request: PhaseRequest = serde_json::from_str(&line)?;
@@ -473,6 +479,11 @@ async fn serve_phase_protocol(
             },
             Ok(()) => {
                 last_generation = request.generation;
+                if request.phase == Phase::Acting {
+                    if let Some(start) = wait_start.take() {
+                        browser_wait_cpu_usec = cgroup.sample()?.delta(&start).cpu_usage_usec;
+                    }
+                }
                 if request.phase != Phase::WaitingForModel {
                     if let Some(task) = pending_freeze.take() {
                         task.abort();
@@ -487,6 +498,9 @@ async fn serve_phase_protocol(
                     cgroup.clone(),
                     &mut pending_freeze,
                 );
+                if request.phase == Phase::WaitingForModel {
+                    wait_start = Some(cgroup.sample()?);
+                }
                 let error = applied.err().map(|error| error.to_string());
                 if error.is_some() {
                     let _ = cgroup.thaw();
@@ -536,7 +550,7 @@ async fn serve_phase_protocol(
             break;
         }
     }
-    Ok(())
+    Ok(browser_wait_cpu_usec)
 }
 
 fn apply_wait_policy(

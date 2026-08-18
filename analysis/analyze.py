@@ -57,6 +57,7 @@ def summarize(tasks):
     for key, values in sorted(groups.items()):
         successful = [v for v in values if v["success"]]
         cpu = [v["browser_cpu_usec"] / 1e6 for v in successful]
+        wait_cpu = [v.get("browser_wait_cpu_usec", 0) / 1e6 for v in successful]
         total_cpu = sum(
             v["browser_cpu_usec"] + v["driver_cpu_usec"] + v["governor_cpu_usec"]
             for v in values
@@ -69,12 +70,14 @@ def summarize(tasks):
             "successes": len(successful),
             "success_rate": len(successful) / len(values),
             "cpu_seconds_per_success": sum(cpu) / len(successful) if successful else None,
+            "wait_cpu_seconds_per_success": sum(wait_cpu) / len(successful) if successful else None,
             "net_cpu_seconds_per_success": total_cpu / len(successful) if successful else None,
             "server_cpu_seconds": sum(v["server_cpu_usec"] for v in values) / 1e6,
             "host_steal_ticks": sum(v["host_steal_ticks"] for v in values),
             "median_latency_ms": float(np.median([v["latency_ms"] for v in values])),
             "p95_latency_ms": float(np.percentile([v["latency_ms"] for v in values], 95)),
             "cpu_median_ci95": bootstrap_ci(cpu),
+            "wait_cpu_median_ci95": bootstrap_ci(wait_cpu),
             "reconnects": sum(v["reconnects"] for v in values),
             "sequence_gaps": sum(v["sequence_gaps"] for v in values),
         })
@@ -82,16 +85,24 @@ def summarize(tasks):
 
 
 def plot(rows, output):
-    representative = [r for r in rows if r["workload"] == "normal-spa" and r["wait_ms"] == 5000]
+    workloads = {row["workload"] for row in rows}
+    workload = "agent-dashboard" if "agent-dashboard" in workloads else "normal-spa"
+    representative = [r for r in rows if r["workload"] == workload and r["wait_ms"] == 5000]
     if not representative:
         return
     labels = [r["mechanism"] for r in representative]
-    values = [r["net_cpu_seconds_per_success"] or math.nan for r in representative]
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.bar(labels, values, color="#335c67")
-    ax.set_ylabel("Net CPU seconds per successful task")
-    ax.set_title("Baeld representative workload (5 s model wait)")
-    ax.tick_params(axis="x", rotation=25)
+    complete = [r["net_cpu_seconds_per_success"] or math.nan for r in representative]
+    wait = [r["wait_cpu_seconds_per_success"] or math.nan for r in representative]
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    axes[0].bar(labels, complete, color="#335c67")
+    axes[0].set_ylabel("CPU seconds per successful task")
+    axes[0].set_title("Complete-task net CPU (primary)")
+    axes[1].bar(labels, wait, color="#9e2a2b")
+    axes[1].set_ylabel("Browser CPU seconds during model wait")
+    axes[1].set_title("Wait-window browser CPU (diagnostic)")
+    for ax in axes:
+        ax.tick_params(axis="x", rotation=25)
+    fig.suptitle(f"Baeld {workload} (5 s model wait)")
     fig.tight_layout()
     fig.savefig(output, dpi=180)
 

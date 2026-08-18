@@ -13,6 +13,7 @@ struct Aggregate {
     runs: u64,
     successes: u64,
     browser_cpu_usec: u64,
+    browser_wait_cpu_usec: u64,
     driver_cpu_usec: u64,
     governor_cpu_usec: u64,
     latency_ms: Vec<f64>,
@@ -30,6 +31,7 @@ struct SummaryRow {
     successes: u64,
     success_rate: f64,
     cpu_seconds_per_success: Option<f64>,
+    wait_cpu_seconds_per_success: Option<f64>,
     net_cpu_seconds_per_success: Option<f64>,
     median_latency_ms: Option<f64>,
     p95_latency_ms: Option<f64>,
@@ -55,6 +57,7 @@ pub fn run(run: &Path, json: bool) -> Result<()> {
             success,
             latency_ms,
             browser_cpu_usec,
+            browser_wait_cpu_usec,
             driver_cpu_usec,
             governor_cpu_usec,
             resume_latency_ms,
@@ -69,6 +72,7 @@ pub fn run(run: &Path, json: bool) -> Result<()> {
             aggregate.runs += 1;
             aggregate.successes += u64::from(success);
             aggregate.browser_cpu_usec += browser_cpu_usec;
+            aggregate.browser_wait_cpu_usec += browser_wait_cpu_usec;
             aggregate.driver_cpu_usec += driver_cpu_usec;
             aggregate.governor_cpu_usec += governor_cpu_usec;
             aggregate.latency_ms.push(latency_ms);
@@ -94,6 +98,10 @@ pub fn run(run: &Path, json: bool) -> Result<()> {
                     aggregate.browser_cpu_usec,
                     aggregate.successes,
                 ),
+                wait_cpu_seconds_per_success: per_success(
+                    aggregate.browser_wait_cpu_usec,
+                    aggregate.successes,
+                ),
                 net_cpu_seconds_per_success: per_success(
                     aggregate.browser_cpu_usec
                         + aggregate.driver_cpu_usec
@@ -113,18 +121,28 @@ pub fn run(run: &Path, json: bool) -> Result<()> {
         println!("{}", serde_json::to_string_pretty(&rows)?);
     } else {
         println!(
-            "{:<28} {:<14} {:>7} {:>9} {:>12} {:>12} {:>12}",
-            "mechanism", "workload", "wait", "success", "cpu/success", "p50 ms", "p95 ms"
+            "{:<28} {:<14} {:>7} {:>9} {:>12} {:>12} {:>12} {:>12}",
+            "mechanism",
+            "workload",
+            "wait",
+            "success",
+            "cpu/success",
+            "wait cpu",
+            "p50 ms",
+            "p95 ms"
         );
         for row in rows {
             println!(
-                "{:<28} {:<14} {:>6}ms {:>4}/{:<4} {:>12} {:>12.1} {:>12.1}",
+                "{:<28} {:<14} {:>6}ms {:>4}/{:<4} {:>12} {:>12} {:>12.1} {:>12.1}",
                 row.mechanism,
                 row.workload,
                 row.wait_ms,
                 row.successes,
                 row.runs,
                 row.cpu_seconds_per_success
+                    .map(|v| format!("{v:.4}s"))
+                    .unwrap_or_else(|| "n/a".into()),
+                row.wait_cpu_seconds_per_success
                     .map(|v| format!("{v:.4}s"))
                     .unwrap_or_else(|| "n/a".into()),
                 row.median_latency_ms.unwrap_or_default(),

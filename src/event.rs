@@ -11,7 +11,7 @@ use crate::metrics::ResourceSample;
 use crate::policy::Mechanism;
 use crate::protocol::Phase;
 
-pub const EVENT_SCHEMA_VERSION: u16 = 1;
+pub const EVENT_SCHEMA_VERSION: u16 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Event {
@@ -40,6 +40,8 @@ pub enum EventKind {
         success: bool,
         latency_ms: f64,
         browser_cpu_usec: u64,
+        #[serde(default)]
+        browser_wait_cpu_usec: u64,
         driver_cpu_usec: u64,
         governor_cpu_usec: u64,
         server_cpu_usec: u64,

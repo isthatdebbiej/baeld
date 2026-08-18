@@ -11,7 +11,7 @@ It compares four mechanisms:
 
 Baeld asks which mechanism reduces **complete-task CPU per successful task** without hiding deferred work, correctness failures, WebSocket disruption, or governor overhead.
 
-> Research preview: no performance result has been collected or claimed yet. Baeld does not claim memory reclamation, increased browser density, or production readiness.
+> Research preview: the first development gate found no credible CPU improvement and found a repeatable WebSocket correctness failure under cgroup freezing. This is not a publication-quality result. Baeld does not claim memory reclamation, increased browser density, or production readiness.
 
 ## Requirements
 
@@ -72,7 +72,7 @@ just plot results/<run-id>
 
 ## Correctness model
 
-The static workload checks an exact DOM oracle. Mutating workloads verify a server-persisted update occurred exactly once. The WebSocket workload reports reconnects and missing sequence numbers. Every measured task includes a post-resume settling window.
+The static workload checks an exact DOM oracle. Mutating workloads verify a server-persisted update occurred exactly once. The controlled agent dashboard performs ordinary polling, JSON processing, sorting, formatting, and DOM reconciliation without a synthetic busy loop. The WebSocket workload reports reconnects and missing sequence numbers. Every measured task includes a post-resume settling window. Baeld reports complete-task CPU as the primary metric and browser CPU during the model-wait window as a diagnostic explaining where changes occur.
 
 ## Security
 

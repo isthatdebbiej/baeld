@@ -23,9 +23,17 @@ Baeld CPU is reported separately and added to Chromium CPU as the net resource r
 
 - `static`: negative control.
 - `normal-spa`: representative controlled workload and headline source.
+- `agent-dashboard`: realism candidate with polling, JSON processing, sorting,
+  formatting, DOM reconciliation, and local state; it becomes a headline source
+  only after its behavior is validated against a real application trace.
 - `noisy-stress`: intentionally favorable stress case, never a standalone headline source.
 - `websocket`: correctness/failure control.
 
 ## Exclusions
 
 Application failures are retained. A run may be marked infrastructure-invalid only when the workload server is unavailable, the browser never launches, the host loses required cgroup control, or the benchmark process is externally interrupted. Every exclusion and its raw artifact must be published.
+
+Complete-task CPU remains primary. Browser CPU measured strictly from the
+acknowledged `waiting_for_model` transition to the received `acting` transition
+is diagnostic: it explains whether savings occur during the wait but cannot by
+itself support a performance claim because work may shift after resume.
