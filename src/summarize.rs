@@ -205,9 +205,7 @@ fn summary_row(
             aggregate.successes,
         ),
         net_cpu_seconds_per_success: per_success(
-            aggregate.browser_cpu_usec
-                + aggregate.driver_cpu_usec
-                + aggregate.governor_cpu_usec,
+            aggregate.browser_cpu_usec + aggregate.driver_cpu_usec + aggregate.governor_cpu_usec,
             aggregate.successes,
         ),
         cpu_throttled_seconds_per_success: per_success(
@@ -227,18 +225,12 @@ fn summary_row(
         max_cpu_pressure_some_avg10: aggregate.browser_cpu_pressure_some_avg10,
         max_memory_pressure_some_avg10: aggregate.browser_memory_pressure_some_avg10,
         max_io_pressure_some_avg10: aggregate.browser_io_pressure_some_avg10,
-        driver_cpu_seconds_per_success: per_success(
-            aggregate.driver_cpu_usec,
-            aggregate.successes,
-        ),
+        driver_cpu_seconds_per_success: per_success(aggregate.driver_cpu_usec, aggregate.successes),
         governor_cpu_seconds_per_success: per_success(
             aggregate.governor_cpu_usec,
             aggregate.successes,
         ),
-        server_cpu_seconds_per_success: per_success(
-            aggregate.server_cpu_usec,
-            aggregate.successes,
-        ),
+        server_cpu_seconds_per_success: per_success(aggregate.server_cpu_usec, aggregate.successes),
         host_steal_ticks: aggregate.host_steal_ticks,
         median_latency_ms: percentile(&aggregate.latency_ms, 0.5),
         p95_latency_ms: percentile(&aggregate.latency_ms, 0.95),
