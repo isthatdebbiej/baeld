@@ -53,6 +53,7 @@ Baeld refuses publishable benchmarks if required host controls or Chromium sandb
 ```bash
 just test     # pure tests and JavaScript syntax
 just smoke    # short four-mechanism experiment
+scripts/run-scoped.sh bench --config experiments/concurrency-gate.toml # schema/concurrency gate
 just pilot    # controlled pilot matrix
 ```
 

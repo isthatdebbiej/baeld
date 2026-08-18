@@ -1,0 +1,27 @@
+name = "concurrency-development-gate"
+chromium = ".baeld/chromium"
+node = "node"
+server_script = "workloads/server.mjs"
+driver_script = "workloads/driver/driver.mjs"
+server_port = 4173
+settle_ms = 1000
+workloads = ["normal-spa", "websocket"]
+waits_ms = [2000]
+concurrency = [1, 5]
+repetitions = 2
+browser_cpus = "2-7"
+
+[[mechanisms]]
+kind = "baseline"
+
+[[mechanisms]]
+kind = "chrome-lifecycle-freeze"
+
+[[mechanisms]]
+kind = "cpu-quota"
+quota_us = 25000
+period_us = 100000
+
+[[mechanisms]]
+kind = "cgroup-freeze"
+delay_ms = 500
