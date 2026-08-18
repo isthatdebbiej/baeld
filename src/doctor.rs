@@ -238,7 +238,6 @@ fn chromium_probe(binary: &str, profile: &Path) -> std::result::Result<(), Strin
             "--disable-gpu",
             "--disable-background-networking",
             "--disable-component-update",
-            "--disable-crash-reporter",
             "--remote-debugging-port=0",
             &format!("--user-data-dir={}", profile.display()),
             "about:blank",

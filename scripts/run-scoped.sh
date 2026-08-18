@@ -28,17 +28,17 @@ for required in cpu io memory pids; do
       exit 1
     fi
     # Older systemd releases commonly delegate only memory and pids to user
-    # scopes. Use a transient system scope, then drop every credential back to
-    # the invoking account before Baeld or Chromium starts.
+    # scopes. A transient system service lets PID 1 delegate all controllers
+    # while applying the invoking user's complete credentials and HOME before
+    # Baeld or Chromium starts.
     exec sudo systemd-run \
-      --scope \
+      --wait \
       --collect \
+      --pipe \
       --quiet \
       -p Delegate=yes \
-      setpriv \
-      --reuid="$(id -un)" \
-      --regid="$(id -gn)" \
-      --init-groups \
+      --uid="$(id -un)" \
+      --working-directory="$root" \
       "${command[@]}"
   fi
 done
