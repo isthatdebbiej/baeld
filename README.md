@@ -17,6 +17,12 @@ Baeld asks which mechanism reduces **complete-task CPU per successful task** wit
 > and a 25% CPU quota were neutral in the tested setup. Baeld does not claim
 > memory reclamation, increased browser density, or production readiness.
 
+The published experiments use Baeld's Playwright driver with a locally launched,
+pinned Chromium process tree. They do **not** yet test Stagehand, Browser Use,
+Browserbase, or model-driven agent behavior. See the
+[framework integration plan](report/framework-integrations.md) for the next
+validation sequence.
+
 ## Requirements
 
 - Ubuntu 24.04 x86-64 or a comparable systemd-based Linux distribution.
@@ -112,7 +118,11 @@ Baeld never requires Chromium to run as root and never passes `--no-sandbox`. Th
 
 ## Project status
 
-The current objective is to falsify or validate the underlying hypothesis before expanding the CLI. See [methodology](report/methodology.md), [limitations](report/limitations.md), and the [experiment ledger](experiments/LOG.md).
+The Playwright pilot found a narrow CPU/correctness tradeoff rather than a
+general-purpose governor win. The next objective is to test whether that result
+survives real agent-framework browser ownership and protocol behavior. See
+[methodology](report/methodology.md), [framework integration plan](report/framework-integrations.md),
+[limitations](report/limitations.md), and the [experiment ledger](experiments/LOG.md).
 
 ## Release packaging
 
