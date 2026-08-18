@@ -36,9 +36,9 @@ pub async fn run(json: bool) -> Result<()> {
             ],
         ),
         command_check("taskset", &["--version"]),
+        active_cgroup_check(),
         chromium_check(),
         sandbox_check(),
-        active_cgroup_check(),
     ];
 
     if json {
