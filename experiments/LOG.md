@@ -153,3 +153,24 @@ Every experiment entry must include its hypothesis, exact command, result, decis
   kernel's asynchronous final cgroup-reference release, then rerun the entire
   focused matrix under a new run ID.
 - Artifacts: `results/1787025161-ubuntu24-focused-pilot-a2b6b487/`.
+
+## E010 — Focused Ubuntu 24.04 pilot
+
+- Hypothesis: Five paired blocks across 5/10-second waits and concurrency one
+  and five will show whether any mechanism offers a repeatable complete-task
+  CPU benefit without violating the WebSocket oracle.
+- Command: `scripts/run-scoped.sh bench --config experiments/ubuntu24-focused-pilot.toml --output results`.
+- Result: The harness completed all 480 task attempts. All 120 dashboard tasks
+  passed. Cgroup freeze reduced dashboard net CPU by 3.5–3.7% at 5 seconds and
+  7.9–8.0% at 10 seconds; all four paired net-CPU intervals excluded zero.
+  However, cgroup freeze failed all 60 WebSocket tasks. Baseline, Chrome
+  lifecycle freeze, and the 25% CPU quota passed all 180 corresponding
+  WebSocket tasks. Their net CPU differences were generally small, inconsistent,
+  and mostly had paired intervals crossing zero. No Chromium, workload-server,
+  or Baeld cgroup resources remained after completion.
+- Decision: Reject a universal governor claim. The only consistent saving came
+  from full process suspension, which was categorically incompatible with the
+  controlled live-connection workload. Treat freeze as an explicitly opt-in,
+  compatibility-tested mechanism and center Baeld on measurement. This remains
+  a pilot (five pairs, one VM lifetime), not a final general performance claim.
+- Artifacts: `results/1787025755-ubuntu24-focused-pilot-45a728b2/`.

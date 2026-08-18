@@ -147,3 +147,41 @@ performance evidence. This gate validates the harness, not a governor win.
 Artifacts are retained locally under
 `results/1787023423-concurrency-development-gate-dd0e305b/` and remain labeled
 development-only because the host ran Ubuntu 22.04 and the gate had two pairs.
+
+## Focused Ubuntu 24.04 pilot — 2026-08-18 UTC
+
+The clean Ubuntu 24.04 host completed 480 task attempts across the controlled
+dashboard and WebSocket workloads, 5- and 10-second model waits, concurrency
+one and five, four mechanisms, and five randomized paired blocks. The harness
+finished successfully after adding a bounded retry for transient `EBUSY` during
+cgroup removal. The interrupted earlier attempt remains wholly excluded as
+infrastructure-invalid.
+
+All 120 dashboard tasks succeeded. Cgroup freeze reduced net measured CPU per
+successful dashboard task by 0.061 seconds (3.7%) at 5 seconds/concurrency one,
+0.074 seconds (3.5%) at 5 seconds/concurrency five, 0.135 seconds (7.9%) at 10
+seconds/concurrency one, and 0.176 seconds (8.0%) at 10 seconds/concurrency
+five. The respective five-pair bootstrap 95% intervals were [-0.071, -0.047],
+[-0.106, -0.034], [-0.144, -0.123], and [-0.213, -0.148] seconds.
+
+That saving did not survive the correctness constraint. Cgroup freeze failed
+all 60 WebSocket tasks across every wait and concurrency cell. Baseline, Chrome
+lifecycle freeze, and the 25% CPU quota passed all 180 of their corresponding
+WebSocket tasks. Chrome lifecycle freeze and CPU quota produced mostly small,
+directionally inconsistent net-CPU differences whose paired confidence
+intervals crossed zero. The quota was not a useful optimization when default
+browser consumption was already below it, and the tested Chrome lifecycle call
+did not suppress the dashboard polling workload.
+
+The honest pilot conclusion is negative for a general-purpose governor. Full
+process-tree suspension can save a modest amount of CPU during sufficiently
+long, explicitly signaled waits, but the same mechanism is unsafe for the
+controlled live-connection workload. Baeld should profile first and expose
+freeze only as an opt-in mechanism after workload-specific compatibility tests.
+Five pairs on one VM lifetime are sufficient to justify this product-direction
+decision, but not a broad production or population-level performance claim.
+
+Raw events, the captured environment, aggregate summary, and paired analysis
+are retained under
+`results/1787025755-ubuntu24-focused-pilot-45a728b2/`. Cleanup validation found
+no remaining Chromium process, workload server, or Baeld cgroup.
