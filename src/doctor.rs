@@ -1,7 +1,8 @@
 use std::env;
 use std::fs;
 use std::path::Path;
-use std::process::Command;
+use std::process::{Command, Output, Stdio};
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Result};
 use serde::Serialize;
@@ -215,15 +216,7 @@ fn sandbox_check() -> Check {
             };
         }
     };
-    let output = Command::new(binary)
-        .args([
-            "--headless=new",
-            "--disable-gpu",
-            "--dump-dom",
-            &format!("--user-data-dir={}", profile.path().display()),
-            "about:blank",
-        ])
-        .output();
+    let output = chromium_probe(&binary, profile.path());
     match output {
         Ok(output) if output.status.success() => Check {
             name: "chromium-sandbox",
@@ -238,7 +231,37 @@ fn sandbox_check() -> Check {
         Err(error) => Check {
             name: "chromium-sandbox",
             ok: false,
-            detail: error.to_string(),
+            detail: error,
         },
+    }
+}
+
+fn chromium_probe(binary: &str, profile: &Path) -> std::result::Result<Output, String> {
+    let mut child = Command::new(binary)
+        .args([
+            "--headless=new",
+            "--disable-gpu",
+            "--disable-background-networking",
+            "--disable-component-update",
+            "--disable-crash-reporter",
+            "--dump-dom",
+            &format!("--user-data-dir={}", profile.display()),
+            "about:blank",
+        ])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|error| error.to_string())?;
+    let deadline = Instant::now() + Duration::from_secs(15);
+    loop {
+        match child.try_wait().map_err(|error| error.to_string())? {
+            Some(_) => return child.wait_with_output().map_err(|error| error.to_string()),
+            None if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
+            None => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err("Chromium sandbox probe exceeded 15 seconds".into());
+            }
+        }
     }
 }
