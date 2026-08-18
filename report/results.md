@@ -98,3 +98,36 @@ it does not justify enabling cgroup freeze by default.
 Raw artifacts are retained locally under
 `results/1787015970-agent-workload-gate-77dabfb1/`. They include the 80-task
 event stream, environment record, processed summary, and chart.
+
+## Long-wait correctness follow-up — 2026-08-18 UTC
+
+A 48-task gate tested 5- and 10-second waits on `agent-dashboard` and the
+WebSocket failure control with three randomized paired blocks. Cgroup freeze
+reduced dashboard net CPU from 1.7543 to 1.5590 seconds at 10 seconds (11.1%),
+while all six cgroup-freeze WebSocket tasks failed. The 5-second failures
+produced three reconnects and 46 sequence gaps; the 10-second failures produced
+three reconnects and 108 gaps. Baseline, lifecycle freeze, and CPU quota passed
+all 18 corresponding WebSocket tasks.
+
+The first dashboard background-operation counter in that run was invalid due
+to a misplaced initializer. Its CPU and WebSocket results remain usable because
+the counter was diagnostic and did not affect policy application, task oracles,
+or resource accounting. The invalid dashboard counter is not interpreted.
+
+A separate 24-task corrected diagnostic used authoritative server-side request
+counts. Baseline, Chrome lifecycle freeze, and the 25% CPU quota each allowed
+exactly 10 dashboard refreshes during a 5-second wait and 20 during a 10-second
+wait. Cgroup freeze allowed a mean of 1.67 and 1.0 respectively. Thus the CDP
+`Page.setWebLifecycleState("frozen")` call used here did not suspend this active
+headless page's polling, while process-tree freeze did.
+
+The result narrows Baeld's viable claim substantially. The only mechanism that
+saved meaningful CPU in these controlled long waits was also the only mechanism
+that repeatedly violated the live-session correctness oracle. Expanding to a
+costly concurrency matrix would measure scaling of an unsafe default and is not
+justified yet. The next engineering work should make compatibility explicit:
+profile first, classify suspend-safe sessions, and keep cgroup freeze opt-in.
+
+Raw artifacts are retained locally under
+`results/1787017302-long-wait-correctness-gate-c8778ac1/` and
+`results/1787017971-dashboard-freeze-diagnostic-c3dd78a8/`.

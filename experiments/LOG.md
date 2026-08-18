@@ -60,3 +60,32 @@ Every experiment entry must include its hypothesis, exact command, result, decis
 - Artifacts: Local ignored directory
   `results/1787015970-agent-workload-gate-77dabfb1/`; interpretation in
   `report/results.md`.
+
+## E004 — Long-wait correctness gate
+
+- Hypothesis: A 10-second wait increases complete-task savings while the
+  WebSocket control exposes the associated compatibility boundary.
+- Command: `scripts/run-scoped.sh bench --config experiments/long-wait-correctness-gate.toml`
+- Result: All 24 dashboard tasks succeeded. At 10 seconds, cgroup freeze reduced
+  dashboard net CPU by 11.1%. All six cgroup-freeze WebSocket tasks failed,
+  with six reconnects and 154 sequence gaps. The other 18 WebSocket tasks
+  passed. The dashboard operation counter was invalid due to a misplaced
+  initializer and is excluded; CPU and correctness accounting were unaffected.
+- Decision: Preserve the CPU and WebSocket results, fix the diagnostic counter,
+  and rerun only the 24 dashboard cells.
+- Artifacts: `results/1787017302-long-wait-correctness-gate-c8778ac1/`.
+
+## E005 — Corrected dashboard freeze diagnostic
+
+- Hypothesis: Server-side request counts will distinguish mechanisms that truly
+  stop dashboard polling from mechanisms whose CPU differences are noise.
+- Command: `scripts/run-scoped.sh bench --config experiments/dashboard-freeze-diagnostic.toml`
+- Result: All 24 tasks succeeded. Baseline, Chrome lifecycle freeze, and CPU
+  quota allowed exactly 10 refreshes at 5 seconds and 20 at 10 seconds. Cgroup
+  freeze allowed means of 1.67 and 1.0. Chrome lifecycle freeze therefore did
+  not suspend polling in this active headless-page setup.
+- Decision: Stop before the concurrency pilot. Reframe Baeld around profiling
+  and explicit suspend compatibility; retain cgroup freeze as opt-in and never
+  as an inferred or universal policy.
+- Artifacts: `results/1787017971-dashboard-freeze-diagnostic-c3dd78a8/`;
+  interpretation in `report/results.md`.
