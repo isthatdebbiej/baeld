@@ -41,3 +41,22 @@ Every experiment entry must include its hypothesis, exact command, result, decis
 - Artifacts: Local ignored directory
   `results/1787012208-cloud-development-gate-3002fb14/`; interpretation in
   `report/results.md`.
+
+## E003 — Agent workload and wait-window accounting gate
+
+- Hypothesis: Direct wait-window accounting and a non-synthetic dashboard will
+  reveal whether the earlier neutral result was caused by whole-task dilution
+  or by genuinely negligible background work.
+- Command: `scripts/run-scoped.sh bench --config experiments/agent-workload-gate.toml`
+- Result: All 80 tasks succeeded. At 5 seconds, cgroup freeze reduced net CPU
+  per successful dashboard task by 5.5% (paired mean -0.0889 seconds; five-pair
+  bootstrap 95% interval [-0.1491, -0.0265]). The effect did not produce a
+  demonstrated complete-task saving at 2 seconds. Native lifecycle freeze and
+  the 25% CPU quota were neutral. This matrix excluded the WebSocket workload;
+  E001 and E002 remain the applicable correctness evidence for cgroup freeze.
+- Decision: Do not run the full pilot yet. First test a 10-second wait, diagnose
+  native lifecycle behavior, add the WebSocket control back into the focused
+  matrix, and validate the dashboard against one pinned real application trace.
+- Artifacts: Local ignored directory
+  `results/1787015970-agent-workload-gate-77dabfb1/`; interpretation in
+  `report/results.md`.

@@ -55,3 +55,46 @@ data will be generated on the declared final environment and attached to a
 versioned release. The environment record reports Rust as unavailable because
 the transient system service did not inherit Cargo's PATH; the compiled binary
 was built with the repository-pinned Rust 1.85 toolchain.
+
+## Agent-workload development gate — 2026-08-18 UTC
+
+This follow-up used the same Vultr host and pinned browser, added direct browser
+CPU accounting for the acknowledged model-wait window, and added a controlled
+dashboard workload. The dashboard polls every 500 ms, decodes 240 records,
+filters and sorts them, formats values, reconciles 60 DOM rows, and persists a
+small local state value. It contains no busy loop.
+
+The matrix contained `normal-spa` and `agent-dashboard`, 2-second and 5-second
+waits, concurrency one, the four primary mechanisms, and five randomized paired
+blocks: 80 successful tasks in total.
+
+At a 5-second wait on `agent-dashboard`, cgroup freeze reduced browser CPU from
+0.9630 to 0.8877 seconds per successful task (7.8%) and net measured CPU from
+1.6148 to 1.5259 seconds (5.5%). The paired mean net difference was -0.0889
+seconds with a five-pair bootstrap 95% interval of [-0.1491, -0.0265]. The
+diagnostic wait-window browser CPU fell from 0.1425 to 0.0255 seconds.
+
+The corresponding 5-second `normal-spa` net reduction was 0.0690 seconds
+(4.5%), with a paired bootstrap interval of [-0.0973, -0.0415]. At 2 seconds,
+cgroup freeze produced no demonstrated complete-task reduction for either
+workload even though wait-window CPU fell. This indicates a break-even effect:
+the fixed cost and the first 500 ms left active consume most available savings
+for short waits.
+
+Chrome lifecycle freeze was neutral in this implementation. That result needs
+further investigation because the CDP command is issued after the phase
+acknowledgement and may not suppress the tested polling behavior as assumed.
+The 25% CPU quota was also effectively neutral because baseline consumption was
+already far below the quota.
+
+These results are still not publication evidence. There are only five pairs,
+only one VM lifetime, no concurrency result, and the controlled dashboard has
+not been validated against a real application trace. More importantly, the
+earlier gate showed cgroup freeze breaks the WebSocket oracle. The observed CPU
+saving therefore describes a conditional tradeoff for sufficiently long,
+correctly signaled waits on applications that tolerate full process suspension;
+it does not justify enabling cgroup freeze by default.
+
+Raw artifacts are retained locally under
+`results/1787015970-agent-workload-gate-77dabfb1/`. They include the 80-task
+event stream, environment record, processed summary, and chart.
