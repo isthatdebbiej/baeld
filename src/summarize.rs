@@ -197,13 +197,13 @@ mod tests {
         let run = Path::new(env!("CARGO_MANIFEST_DIR")).join("analysis/fixtures");
         let rows = summarize(&run).unwrap();
         assert_eq!(rows.len(), 2);
-        assert!(rows.iter().all(|row| row.evidence_level == "development-only"));
+        assert!(rows
+            .iter()
+            .all(|row| row.evidence_level == "development-only"));
         assert!(rows
             .iter()
             .all(|row| row.compatibility == "no-failure-observed"));
-        assert!(rows
-            .iter()
-            .all(|row| row.mean_background_operations == 0.0));
+        assert!(rows.iter().all(|row| row.mean_background_operations == 0.0));
     }
 
     #[test]
