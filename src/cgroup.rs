@@ -102,9 +102,8 @@ impl SessionCgroup {
                     // than invalidating an otherwise completed block.
                 }
                 Err(error) => {
-                    return Err(error).with_context(|| {
-                        format!("removing cgroup {}", self.path.display())
-                    });
+                    return Err(error)
+                        .with_context(|| format!("removing cgroup {}", self.path.display()));
                 }
             }
             std::thread::sleep(Duration::from_millis(25));
