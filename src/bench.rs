@@ -331,7 +331,7 @@ async fn run_one(
     let controller_writer = writer.clone();
     let controller_mechanism = mechanism.clone();
     let controller_session = session_id.clone();
-    let controller = tokio::spawn(async move {
+    let mut controller = tokio::spawn(async move {
         serve_phase_protocol(
             listener,
             controller_cgroup,
@@ -412,13 +412,20 @@ async fn run_one(
     let after = cgroup.sample()?;
     sampler.abort();
     let _ = sampler.await;
-    let browser_wait_cpu_usec = match tokio::time::timeout(Duration::from_secs(2), controller).await
-    {
-        Ok(joined) => joined.context("phase controller panicked")??,
-        Err(_) => bail!("phase controller did not stop after finished phase"),
-    };
+    let (browser_wait_cpu_usec, controller_failure) =
+        match tokio::time::timeout(Duration::from_secs(2), &mut controller).await {
+            Ok(joined) => (joined.context("phase controller panicked")??, None),
+            Err(_) => {
+                controller.abort();
+                let _ = controller.await;
+                (
+                    0,
+                    Some("phase controller did not stop after driver exit".to_owned()),
+                )
+            }
+        };
 
-    let parsed = match output {
+    let mut parsed = match output {
         Ok(Ok(output)) if output.status.success() => {
             serde_json::from_slice::<DriverResult>(&output.stdout).unwrap_or_else(|error| {
                 DriverResult {
@@ -468,6 +475,13 @@ async fn run_one(
             failure: Some(format!("Playwright driver exceeded {driver_timeout:?}")),
         },
     };
+    if let Some(controller_failure) = controller_failure {
+        parsed.success = false;
+        parsed.failure = Some(match parsed.failure {
+            Some(failure) => format!("{failure}; {controller_failure}"),
+            None => controller_failure,
+        });
+    }
 
     let delta = after.delta(&before);
 

@@ -13,7 +13,7 @@ os.environ.setdefault(
 from browser_use import BrowserSession
 
 
-DRIVER_PATH = pathlib.Path(__file__).parents[1] / "workloads" / "driver" / "browser_use.py"
+DRIVER_PATH = pathlib.Path(__file__).parents[1] / "workloads" / "driver" / "browser_use_driver.py"
 SPEC = importlib.util.spec_from_file_location("baeld_browser_use_driver", DRIVER_PATH)
 assert SPEC is not None and SPEC.loader is not None
 DRIVER = importlib.util.module_from_spec(SPEC)

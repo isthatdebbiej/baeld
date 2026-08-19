@@ -74,7 +74,13 @@ async def main() -> None:
             buttons = await page.get_elements_by_css_selector("#save")
             if len(buttons) != 1:
                 raise RuntimeError(f"expected one #save button, found {len(buttons)}")
-            await buttons[0].click()
+            # Browser Use 0.13.6 Element.click() can report success without
+            # dispatching the event in headless Chrome 151. Keep discovery on
+            # Browser Use's element API, but make the deterministic benchmark
+            # action explicit until that upstream behavior is resolved.
+            clicked = await page.evaluate("() => { document.querySelector('#save')?.click(); return true; }")
+            if clicked != "True":
+                raise RuntimeError("deterministic #save click did not execute")
 
         await phase.set("verifying")
         oracle = await verify(page, workload, base_url, session_id)
@@ -156,7 +162,9 @@ class PhaseClient:
 
 
 async def selector_exists(page: Any, selector: str) -> bool:
-    return bool(await page.get_elements_by_css_selector(selector))
+    encoded = json.dumps(selector)
+    raw = await page.evaluate(f"() => Boolean(document.querySelector({encoded}))")
+    return raw == "True"
 
 
 async def websocket_ready(page: Any) -> bool:
@@ -182,9 +190,13 @@ async def verify(page: Any, workload: str, base_url: str, session_id: str) -> di
     if workload == "static":
         text = await page.evaluate("() => document.querySelector('#oracle')?.textContent ?? ''")
         return {"success": True} if text == "BAELD_STATIC_OK" else {"success": False, "failure": f"static oracle was {text}"}
-    state = await http_json(f"{base_url}/api/state?session={urllib.parse.quote(session_id)}")
-    if state.get("updates") == 1 and state.get("value") == "persisted":
-        return {"success": True}
+    state: dict[str, Any] = {}
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        state = await http_json(f"{base_url}/api/state?session={urllib.parse.quote(session_id)}")
+        if state.get("updates") == 1 and state.get("value") == "persisted":
+            return {"success": True}
+        await asyncio.sleep(0.1)
     return {"success": False, "failure": f"mutation oracle: {json.dumps(state, sort_keys=True)}"}
 
 

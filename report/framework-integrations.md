@@ -80,6 +80,13 @@ have passed a local real-CDP attachment smoke test against a Baeld-owned
 Chromium process. The Linux cgroup gates and any model-backed agent runs remain
 pending measurements; adapter readiness is not benchmark evidence.
 
+Browser Use 0.13.6's `Element.click()` returned without error but did not
+dispatch the controlled workload's button event under headless Chrome 151 on
+Ubuntu 24.04. The deterministic gate therefore uses Browser Use's element API
+for discovery and `Page.evaluate()` for the action. This measures Browser Use
+session overhead and suspension compatibility; it is not evidence about the
+reliability or performance of Browser Use's model-backed agent or click helper.
+
 If Browser Use cannot attach to a Baeld-owned browser without altering normal
 behavior, record that as an integration limitation; do not move the Python
 agent into the browser cgroup merely to make accounting convenient.
