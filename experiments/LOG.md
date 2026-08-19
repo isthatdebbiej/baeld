@@ -174,3 +174,33 @@ Every experiment entry must include its hypothesis, exact command, result, decis
   compatibility-tested mechanism and center Baeld on measurement. This remains
   a pilot (five pairs, one VM lifetime), not a final general performance claim.
 - Artifacts: `results/1787025755-ubuntu24-focused-pilot-45a728b2/`.
+
+## E011 — Stagehand deterministic integration gate
+
+- Hypothesis: Stagehand's attached-browser runtime may add enough wait-phase
+  activity for cgroup freeze to improve complete-task CPU without changing the
+  previously observed correctness boundary.
+- Command: `scripts/run-scoped.sh bench --config experiments/stagehand-gate.toml`.
+- Result: All 16 dashboard tasks passed. The eight-pair frozen-minus-baseline
+  net CPU difference was -0.0062 seconds with a bootstrap 95% interval of
+  [-0.0958, 0.0807], despite a -0.1800-second wait-window CPU difference. All
+  eight baseline WebSocket tasks passed and all eight frozen tasks failed.
+- Decision: Stagehand does not create a demonstrated whole-task CPU win in this
+  gate. Do not freeze live-connection sessions or report wait-only savings as
+  complete-task savings.
+- Artifacts: `results/1787110699-stagehand-deterministic-gate-f5b7d623/`.
+
+## E012 — Browser Use deterministic integration gate
+
+- Hypothesis: Browser Use's attached-browser runtime may change the CPU or
+  correctness tradeoff observed with Playwright and Stagehand.
+- Command: `scripts/run-scoped.sh bench --config experiments/browser-use-gate.toml`.
+- Result: All 16 dashboard tasks passed. The eight-pair net CPU difference was
+  -0.0651 seconds (4.1%), with a bootstrap 95% interval of
+  [-0.1182, -0.0061]; browser-only CPU remained inconclusive. Wait-window CPU
+  fell by 0.1520 seconds. All eight baseline WebSocket tasks passed and all
+  eight frozen tasks failed.
+- Decision: Treat the small dashboard result as directional framework-specific
+  evidence, not a broad claim. The categorical WebSocket failure still rules
+  out universal freezing and supports profiler-first product development.
+- Artifacts: `results/1787111322-browser-use-deterministic-gate-75022db4/`.

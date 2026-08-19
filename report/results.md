@@ -185,3 +185,37 @@ Raw events, the captured environment, aggregate summary, and paired analysis
 are retained under
 `results/1787025755-ubuntu24-focused-pilot-45a728b2/`. Cleanup validation found
 no remaining Chromium process, workload server, or Baeld cgroup.
+
+## Framework integration gates — 2026-08-19 UTC
+
+Two clean 32-task gates tested Baeld-owned Chromium through Stagehand 4.0.1 and
+Browser Use 0.13.6. Both ran from clean commit `a868eb4` on Ubuntu 24.04.4,
+Chrome for Testing 151.0.7922.34, 8 dedicated vCPUs, and 32 GB RAM. Each gate
+used eight randomized baseline/freeze pairs at a 5-second wait and concurrency
+one for the controlled dashboard and WebSocket failure control.
+
+All 32 dashboard tasks succeeded. Stagehand's frozen dashboard net CPU changed
+by -0.0062 seconds per complete task (paired bootstrap 95% interval
+[-0.0958, 0.0807]), so it demonstrated no complete-task saving. Browser Use's
+point estimate was -0.0651 seconds, or 4.1% (interval [-0.1182, -0.0061]); its
+browser-only interval still crossed zero. Both frameworks showed a clear
+reduction inside the wait window, approximately 0.1800 and 0.1520 browser CPU
+seconds respectively. The much smaller whole-task effects show that reporting
+only wait-window CPU would overstate practical savings.
+
+Correctness was categorical in this controlled workload. All 16 baseline
+WebSocket tasks passed across the two frameworks, while all 16 cgroup-freeze
+tasks failed. This reproduces the earlier Playwright result and makes a
+framework-specific rescue of universal process suspension implausible.
+
+These gates do not exercise Stagehand `act()` or Browser Use's model-backed
+`Agent`; they measure deterministic framework attachment and session overhead.
+Browser Use 0.13.6's element click helper did not dispatch the controlled
+button event on this browser build, so the declared adapter uses its element
+API for discovery and `Page.evaluate()` for the deterministic action. The
+framework results support a measurement-first, compatibility-aware tool, not a
+default freezing governor.
+
+Raw artifacts are retained locally under
+`results/1787110699-stagehand-deterministic-gate-f5b7d623/` and
+`results/1787111322-browser-use-deterministic-gate-75022db4/`.
