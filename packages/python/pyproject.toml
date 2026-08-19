@@ -13,7 +13,7 @@ authors=[{name="Baeld contributors"}]
 classifiers=["Development Status :: 3 - Alpha","Programming Language :: Python :: 3.12","Operating System :: POSIX :: Linux"]
 
 [project.optional-dependencies]
-browser-use=["browser-use==0.13.6"]
+browser-use=["browser-use==0.13.7"]
 
 [project.urls]
 Repository="https://github.com/isthatdebbiej/baeld"
