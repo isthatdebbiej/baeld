@@ -16,6 +16,8 @@ pub struct ResourceSample {
     pub io_read_bytes: u64,
     pub io_write_bytes: u64,
     pub process_count: usize,
+    pub thread_count: usize,
+    pub file_descriptor_count: usize,
     pub cpu_pressure_some_avg10: Option<f64>,
     pub memory_pressure_some_avg10: Option<f64>,
     pub io_pressure_some_avg10: Option<f64>,
@@ -35,6 +37,8 @@ impl ResourceSample {
             io_read_bytes: self.io_read_bytes.saturating_sub(before.io_read_bytes),
             io_write_bytes: self.io_write_bytes.saturating_sub(before.io_write_bytes),
             process_count: self.process_count,
+            thread_count: self.thread_count,
+            file_descriptor_count: self.file_descriptor_count,
             cpu_pressure_some_avg10: self.cpu_pressure_some_avg10,
             memory_pressure_some_avg10: self.memory_pressure_some_avg10,
             io_pressure_some_avg10: self.io_pressure_some_avg10,
@@ -45,6 +49,11 @@ impl ResourceSample {
 pub fn sample(cgroup: &Path) -> Result<ResourceSample> {
     let cpu = parse_key_values(&read(cgroup.join("cpu.stat"))?);
     let io = parse_io(&read(cgroup.join("io.stat")).unwrap_or_default());
+    let pids = read(cgroup.join("cgroup.procs"))?
+        .lines()
+        .filter_map(|line| line.trim().parse::<u32>().ok())
+        .collect::<Vec<_>>();
+    let (thread_count, file_descriptor_count) = process_details(&pids);
     Ok(ResourceSample {
         cpu_usage_usec: get(&cpu, "usage_usec"),
         cpu_user_usec: get(&cpu, "user_usec"),
@@ -54,10 +63,9 @@ pub fn sample(cgroup: &Path) -> Result<ResourceSample> {
         memory_peak_bytes: read_u64(cgroup.join("memory.peak")).ok(),
         io_read_bytes: io.0,
         io_write_bytes: io.1,
-        process_count: read(cgroup.join("cgroup.procs"))?
-            .lines()
-            .filter(|line| !line.trim().is_empty())
-            .count(),
+        process_count: pids.len(),
+        thread_count,
+        file_descriptor_count,
         cpu_pressure_some_avg10: pressure_avg10(
             &read(cgroup.join("cpu.pressure")).unwrap_or_default(),
         ),
@@ -67,6 +75,18 @@ pub fn sample(cgroup: &Path) -> Result<ResourceSample> {
         io_pressure_some_avg10: pressure_avg10(
             &read(cgroup.join("io.pressure")).unwrap_or_default(),
         ),
+    })
+}
+
+fn process_details(pids: &[u32]) -> (usize, usize) {
+    pids.iter().fold((0, 0), |(threads, fds), pid| {
+        let task = std::fs::read_dir(format!("/proc/{pid}/task"))
+            .map(|v| v.count())
+            .unwrap_or(0);
+        let fd = std::fs::read_dir(format!("/proc/{pid}/fd"))
+            .map(|v| v.count())
+            .unwrap_or(0);
+        (threads + task, fds + fd)
     })
 }
 

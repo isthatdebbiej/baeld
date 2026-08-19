@@ -1,0 +1,24 @@
+import process from "node:process";
+import { chromium } from "playwright";
+import { BaeldAgent } from "../../packages/js/src/index.js";
+
+const mode = process.argv[2] ?? "normal";
+const agent = await BaeldAgent.connect({ framework: "playwright", workload: "runtime-fixture" });
+await agent.phase("starting");
+const browser = await chromium.connectOverCDP(process.env.BAELD_CDP_URL);
+const context = browser.contexts()[0];
+const page = context.pages()[0] ?? await context.newPage();
+await agent.phase("navigating");
+await page.goto("data:text/html,<title>Baeld runtime fixture</title><button>ok</button>");
+await agent.phase("observing");
+if (mode === "sigkill") process.kill(process.pid, "SIGKILL");
+await agent.waitingForModel(2000);
+await new Promise(resolve => setTimeout(resolve, 2000));
+if (mode === "exit") process.exit(17);
+await agent.acting();
+await page.getByRole("button", { name: "ok" }).click();
+await agent.verify();
+if ((await page.title()) !== "Baeld runtime fixture") throw new Error("fixture oracle failed");
+await agent.phase("settling");
+await agent.finish();
+agent.close();

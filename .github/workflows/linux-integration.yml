@@ -1,0 +1,29 @@
+name: Linux integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    runs-on: [self-hosted, linux, x64, baeld-cgroup-v2]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.85.0
+      - uses: oven-sh/setup-bun@v2
+        with: { bun-version: 1.3.14 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: scripts/setup-ubuntu.sh
+      - run: cargo build --release --locked
+      - run: scripts/run-scoped.sh doctor
+      - run: scripts/run-scoped.sh smoke --output results
+      - run: cp baeld.example.toml baeld.toml
+      - run: bash scripts/run-runtime-lifecycle.sh
+      - run: scripts/run-scoped.sh bench --config experiments/stagehand-gate.toml --output results
+      - run: scripts/run-scoped.sh bench --config experiments/browser-use-gate.toml --output results
+      - if: always()
+        run: target/release/baeld cleanup

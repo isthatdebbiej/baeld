@@ -1,0 +1,17 @@
+name: Workload reproduction
+description: Contribute a workload where Baeld helps, is neutral, or performs worse
+title: "[workload] "
+labels: [workload]
+body:
+  - type: textarea
+    id: classification
+    attributes: { label: Workload and why it is representative }
+    validations: { required: true }
+  - type: textarea
+    id: oracle
+    attributes: { label: Authoritative success oracle }
+    validations: { required: true }
+  - type: textarea
+    id: evidence
+    attributes: { label: Environment, raw events, and repetitions }
+    validations: { required: true }

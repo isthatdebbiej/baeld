@@ -20,6 +20,8 @@ pub struct ChromeConfig {
     pub allow_extensions: bool,
     #[serde(default)]
     pub cpu_affinity: Option<String>,
+    #[serde(default)]
+    pub profile_dir: Option<PathBuf>,
 }
 
 fn default_host() -> String {
@@ -28,14 +30,27 @@ fn default_host() -> String {
 
 pub struct ChromeProcess {
     child: Child,
-    _profile: TempDir,
+    _temporary_profile: Option<TempDir>,
+    pub profile: PathBuf,
     pub port: u16,
 }
 
 impl ChromeProcess {
     pub async fn launch(config: &ChromeConfig, cgroup: &SessionCgroup, port: u16) -> Result<Self> {
-        let profile = tempfile::Builder::new().prefix("baeld-chrome-").tempdir()?;
-        let args = chrome_arguments(config, profile.path(), port);
+        let temporary_profile = if config.profile_dir.is_none() {
+            Some(tempfile::Builder::new().prefix("baeld-chrome-").tempdir()?)
+        } else {
+            None
+        };
+        let profile = config.profile_dir.clone().unwrap_or_else(|| {
+            temporary_profile
+                .as_ref()
+                .expect("temporary profile")
+                .path()
+                .to_owned()
+        });
+        std::fs::create_dir_all(&profile)?;
+        let args = chrome_arguments(config, &profile, port);
 
         let quoted_exe = shell_quote(&config.executable);
         let quoted_args = args
@@ -65,7 +80,8 @@ impl ChromeProcess {
 
         let process = Self {
             child,
-            _profile: profile,
+            _temporary_profile: temporary_profile,
+            profile,
             port,
         };
         process.wait_ready(Duration::from_secs(15)).await?;
@@ -74,6 +90,10 @@ impl ChromeProcess {
 
     pub fn websocket_discovery_url(&self) -> String {
         format!("http://127.0.0.1:{}", self.port)
+    }
+
+    pub fn root_pid(&self) -> Option<u32> {
+        self.child.id()
     }
 
     pub async fn wait_ready(&self, timeout: Duration) -> Result<()> {
@@ -94,8 +114,23 @@ impl ChromeProcess {
     }
 
     pub async fn terminate(&mut self) {
-        let _ = self.child.kill().await;
-        let _ = self.child.wait().await;
+        self.terminate_gracefully(Duration::from_secs(3)).await;
+    }
+
+    pub async fn terminate_gracefully(&mut self, grace: Duration) {
+        #[cfg(target_os = "linux")]
+        if let Some(pid) = self.child.id() {
+            unsafe {
+                libc::kill(pid as libc::pid_t, libc::SIGTERM);
+            }
+        }
+        if !matches!(
+            tokio::time::timeout(grace, self.child.wait()).await,
+            Ok(Ok(_))
+        ) {
+            let _ = self.child.kill().await;
+            let _ = self.child.wait().await;
+        }
     }
 }
 
@@ -137,6 +172,7 @@ mod tests {
             extra_args: vec!["--remote-allow-origins=*".into()],
             allow_extensions,
             cpu_affinity: None,
+            profile_dir: None,
         }
     }
 

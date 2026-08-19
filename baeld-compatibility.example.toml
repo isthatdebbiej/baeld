@@ -1,0 +1,6 @@
+[[records]]
+framework = "playwright"
+workload = "example-workload"
+browser_version = "151.0.7922.34"
+mechanism = "cgroup-freeze"
+compatible = false

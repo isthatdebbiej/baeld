@@ -315,6 +315,7 @@ async fn run_one(
         extra_args: config.chrome_args.clone(),
         allow_extensions: config.allow_extensions,
         cpu_affinity: config.browser_cpus.clone(),
+        profile_dir: None,
     };
     let mut chrome = ChromeProcess::launch(&chrome_config, &cgroup, port).await?;
     if cgroup.pids()?.is_empty() {

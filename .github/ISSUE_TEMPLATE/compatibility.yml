@@ -1,0 +1,17 @@
+name: Framework compatibility
+description: Report a Playwright, Stagehand, Browser Use, or other adapter result
+title: "[compatibility] "
+labels: [compatibility]
+body:
+  - type: input
+    id: framework
+    attributes: { label: Framework and version }
+    validations: { required: true }
+  - type: textarea
+    id: ownership
+    attributes: { label: Browser ownership and launch path }
+    validations: { required: true }
+  - type: textarea
+    id: result
+    attributes: { label: Correctness, cleanup, and concurrency result }
+    validations: { required: true }

@@ -1,0 +1,30 @@
+schema_version = 1
+chromium = ".baeld/chromium"
+
+[policy]
+mode = "adaptive"
+freeze_compatibility = "required"
+# compatibility_file = "baeld-compatibility.toml"
+sample_ms = 500
+phase_timeout_ms = 120000
+
+[session]
+mode = "ephemeral"
+max_memory_mb = 2048
+max_processes = 128
+shutdown_grace_ms = 5000
+recycle_on_degraded = false
+
+[filtering]
+profile = "safe"
+
+[concurrency]
+max_active_navigation = 8
+max_active_actions = 12
+stagger_resume_ms = 100
+max_cpu_pressure_avg10 = 20.0
+max_memory_pressure_avg10 = 10.0
+
+[telemetry]
+jsonl = true
+otel_endpoint = ""

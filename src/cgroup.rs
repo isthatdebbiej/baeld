@@ -13,6 +13,15 @@ pub struct SessionCgroup {
 }
 
 impl SessionCgroup {
+    pub fn open_existing(path: PathBuf) -> Result<Self> {
+        if !path.join("cgroup.procs").exists() {
+            bail!("cgroup {} does not exist", path.display());
+        }
+        Ok(Self {
+            path,
+            removed: false,
+        })
+    }
     pub fn create(parent: &Path, session_id: &str) -> Result<Self> {
         let path = parent.join(format!("session-{session_id}"));
         fs::create_dir(&path).with_context(|| format!("creating cgroup {}", path.display()))?;
@@ -38,6 +47,18 @@ impl SessionCgroup {
             .map(|quota| format!("{quota} {period_us}"))
             .unwrap_or_else(|| format!("max {period_us}"));
         self.write("cpu.max", &value)
+    }
+
+    pub fn set_memory_max(&self, bytes: u64) -> Result<()> {
+        self.write("memory.max", &bytes.to_string())
+    }
+
+    pub fn set_memory_high(&self, bytes: u64) -> Result<()> {
+        self.write("memory.high", &bytes.to_string())
+    }
+
+    pub fn set_pids_max(&self, count: u64) -> Result<()> {
+        self.write("pids.max", &count.to_string())
     }
 
     pub fn freeze(&self) -> Result<()> {

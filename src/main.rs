@@ -4,12 +4,20 @@ mod bench;
 mod cgroup;
 #[cfg(target_os = "linux")]
 mod chrome;
+mod config;
 mod doctor;
 mod event;
+mod health;
 mod metrics;
 mod policy;
 mod protocol;
+#[cfg(target_os = "linux")]
+mod runtime;
+#[cfg(target_os = "linux")]
+mod scheduler;
 mod summarize;
+#[cfg(target_os = "linux")]
+mod telemetry;
 
 use std::path::PathBuf;
 
@@ -31,7 +39,11 @@ mod bench {
 }
 
 #[derive(Debug, Parser)]
-#[command(name = "baeld", version, about = "Browser-agent suspension benchmark")]
+#[command(
+    name = "baeld",
+    version,
+    about = "Browser-agent performance runtime and benchmark"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -64,6 +76,26 @@ enum Command {
         #[arg(long)]
         json: bool,
     },
+    /// Run and supervise an agent connected to a Baeld-owned Chromium session.
+    Run {
+        #[arg(long, default_value = "baeld.toml")]
+        config: PathBuf,
+        #[arg(required = true, trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+    /// Inspect a live or recently completed runtime session.
+    Inspect {
+        session_id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// List runtime sessions known to this machine.
+    Sessions {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Remove stale session metadata and abandoned owned resources.
+    Cleanup,
 }
 
 #[tokio::main]
@@ -74,5 +106,21 @@ async fn main() -> Result<()> {
         Command::Smoke { output } => bench::run_smoke(&output).await,
         Command::Bench { config, output } => bench::run_config(&config, &output).await,
         Command::Summarize { run, json } => summarize::run(&run, json),
+        #[cfg(target_os = "linux")]
+        Command::Run { config, command } => runtime::run(&config, &command).await,
+        #[cfg(not(target_os = "linux"))]
+        Command::Run { .. } => anyhow::bail!("Baeld runtime requires Linux with cgroup v2"),
+        #[cfg(target_os = "linux")]
+        Command::Inspect { session_id, json } => runtime::inspect(&session_id, json),
+        #[cfg(not(target_os = "linux"))]
+        Command::Inspect { .. } => anyhow::bail!("Baeld runtime requires Linux with cgroup v2"),
+        #[cfg(target_os = "linux")]
+        Command::Sessions { json } => runtime::sessions(json),
+        #[cfg(not(target_os = "linux"))]
+        Command::Sessions { .. } => anyhow::bail!("Baeld runtime requires Linux with cgroup v2"),
+        #[cfg(target_os = "linux")]
+        Command::Cleanup => runtime::cleanup(),
+        #[cfg(not(target_os = "linux"))]
+        Command::Cleanup => anyhow::bail!("Baeld runtime requires Linux with cgroup v2"),
     }
 }

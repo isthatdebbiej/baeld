@@ -1,0 +1,15 @@
+name = "runtime-lifecycle-500"
+chromium = ".baeld/chromium"
+node = "node"
+server_script = "workloads/server.mjs"
+driver_script = "workloads/driver/driver.mjs"
+server_port = 4173
+settle_ms = 3000
+workloads = ["agent-dashboard", "websocket"]
+waits_ms = [5000]
+concurrency = [5]
+repetitions = 25
+mechanisms = [
+  { kind = "baseline" },
+  { kind = "cpu-quota", quota_us = 25000, period_us = 100000 },
+]

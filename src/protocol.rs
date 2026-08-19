@@ -25,6 +25,37 @@ pub struct PhaseRequest {
     pub expected_wait_ms: Option<u64>,
     #[serde(default)]
     pub page_cdp_session_id: Option<String>,
+    #[serde(default)]
+    pub framework: Option<String>,
+    #[serde(default)]
+    pub workload: Option<String>,
+    #[serde(default)]
+    pub browser_version: Option<String>,
+    #[serde(default)]
+    pub critical_live_connection: bool,
+}
+
+pub fn valid_transition(previous: Option<Phase>, next: Phase) -> bool {
+    use Phase::*;
+    matches!(
+        (previous, next),
+        (None, Starting)
+            | (Some(Starting), Navigating)
+            | (Some(Navigating), Observing)
+            | (Some(Observing), WaitingForModel)
+            | (Some(WaitingForModel), Acting)
+            | (Some(Acting), Verifying)
+            | (Some(Verifying), Settling)
+            | (Some(Settling), Finished)
+            | (Some(Verifying), Observing)
+            | (Some(Acting), Observing)
+            | (Some(Observing), Acting)
+            | (Some(Navigating), Finished)
+            | (Some(Observing), Finished)
+            | (Some(WaitingForModel), Finished)
+            | (Some(Acting), Finished)
+            | (Some(Verifying), Finished)
+    )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,7 +106,23 @@ mod tests {
             phase: Phase::Acting,
             expected_wait_ms: None,
             page_cdp_session_id: None,
+            framework: None,
+            workload: None,
+            browser_version: None,
+            critical_live_connection: false,
         };
         assert!(req.validate("s", 4).is_err());
+    }
+
+    #[test]
+    fn rejects_impossible_transition() {
+        assert!(!valid_transition(
+            Some(Phase::WaitingForModel),
+            Phase::Navigating
+        ));
+        assert!(valid_transition(
+            Some(Phase::WaitingForModel),
+            Phase::Acting
+        ));
     }
 }

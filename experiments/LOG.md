@@ -2,7 +2,7 @@
 
 Every experiment entry must include its hypothesis, exact command, result, decision, and artifact directory. Results are never overwritten.
 
-## E000 — Initial baseline plan
+## E000 — Initial baseline declaration
 
 - Hypothesis: At least one suspension mechanism changes complete-task CPU or correctness relative to default Chromium.
 - Command: `just smoke`

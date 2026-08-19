@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add `baeld run`, session inspection, stale cleanup, health monitoring, limits, admission control, and OTLP/JSONL telemetry.
+- Add selectable observe, safe, adaptive, and explicit policy modes.
+- Add npm Playwright/Stagehand and PyPI Browser Use adapter packages.
+- Add measured filtering interfaces and ephemeral, persistent, and warm session configuration.
+- Replace internal planning prose with user configuration, policy, integration, architecture, telemetry, troubleshooting, and benchmark guides.
 - Record concurrency and randomized block identity in terminal benchmark events.
 - Prevent the analyzers from pooling concurrency 1, 5, and 10 results.
 - Pair schema-4 measurements by block identity and retain failed-attempt CPU.

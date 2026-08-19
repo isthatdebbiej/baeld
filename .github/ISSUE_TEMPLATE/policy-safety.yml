@@ -1,0 +1,16 @@
+name: Unsafe policy behavior
+description: Report correctness or recovery behavior caused by a Baeld policy
+title: "[policy safety] "
+labels: [policy-safety]
+body:
+  - type: dropdown
+    id: policy
+    attributes: { label: Policy, options: [safe, adaptive, explicit CPU quota, explicit lifecycle freeze, explicit cgroup freeze] }
+    validations: { required: true }
+  - type: textarea
+    id: oracle
+    attributes: { label: Authoritative oracle and observed violation }
+    validations: { required: true }
+  - type: textarea
+    id: connections
+    attributes: { label: Timers, polling, workers, WebSockets, SSE, and authentication behavior }

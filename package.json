@@ -1,13 +1,14 @@
 {
   "name": "baeld-workloads",
   "private": true,
+  "workspaces": ["packages/js"],
   "type": "module",
   "engines": {
     "node": ">=22.18.0"
   },
   "scripts": {
     "server": "node workloads/server.mjs",
-    "check": "node --check workloads/server.mjs && node --check workloads/driver/driver.mjs && node --check workloads/driver/stagehand.mjs"
+    "check": "node --check workloads/server.mjs && node --check workloads/driver/driver.mjs && node --check workloads/driver/stagehand.mjs && node --check workloads/driver/runtime-fixture.mjs && node --check workloads/driver/real_playwright.mjs && node --check workloads/driver/real_stagehand.mjs && node --check packages/js/src/index.js && node --test packages/js/test/*.test.js"
   },
   "dependencies": {
     "@browserbasehq/stagehand": "4.0.1",

@@ -4,6 +4,8 @@ Baeld is an experimental Linux benchmark for browser-agent inference waits. This
 preview publishes a reusable measurement harness and an unfavorable systems
 tradeoff; it is not a production governor recommendation.
 
+The subsequent v0.1 runtime work is tracked under `Unreleased` in the changelog. These notes remain the historical record for the already-published measurement preview and must not be read as the feature list for the current development branch.
+
 ## Result
 
 On one Vultr 4-vCPU/16-GB Ubuntu 22.04 development VM with pinned Chromium:
