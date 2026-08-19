@@ -46,6 +46,8 @@ pub struct BenchConfig {
     #[serde(default)]
     pub chrome_args: Vec<String>,
     #[serde(default)]
+    pub allow_extensions: bool,
+    #[serde(default)]
     pub browser_cpus: Option<String>,
 }
 
@@ -311,6 +313,7 @@ async fn run_one(
         executable: config.chromium.clone(),
         remote_debugging_host: "127.0.0.1".into(),
         extra_args: config.chrome_args.clone(),
+        allow_extensions: config.allow_extensions,
         cpu_affinity: config.browser_cpus.clone(),
     };
     let mut chrome = ChromeProcess::launch(&chrome_config, &cgroup, port).await?;

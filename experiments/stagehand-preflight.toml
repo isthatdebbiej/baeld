@@ -1,14 +1,14 @@
-name = "stagehand-deterministic-gate"
+name = "stagehand-preflight"
 chromium = ".baeld/chromium"
 node = "bun"
 server_script = "workloads/server.mjs"
 driver_script = "workloads/driver/stagehand.mjs"
 server_port = 4173
-settle_ms = 3000
-workloads = ["agent-dashboard", "websocket"]
-waits_ms = [5000]
+settle_ms = 1000
+workloads = ["agent-dashboard"]
+waits_ms = [500]
 concurrency = [1]
-repetitions = 8
+repetitions = 1
 browser_cpus = "2-7"
 allow_extensions = true
 chrome_args = [
@@ -19,7 +19,3 @@ chrome_args = [
 
 [[mechanisms]]
 kind = "baseline"
-
-[[mechanisms]]
-kind = "cgroup-freeze"
-delay_ms = 500
